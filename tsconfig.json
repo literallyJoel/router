@@ -12,7 +12,12 @@
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
-    "noEmit": true,
+    
+    // Declaration files
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "declarationMap": true,
+    "outDir": "./dist",
 
     // Best practices
     "strict": true,
@@ -25,5 +30,7 @@
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "noPropertyAccessFromIndexSignature": false
-  }
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "src/dev.ts"]
 }
