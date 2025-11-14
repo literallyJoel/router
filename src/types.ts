@@ -12,8 +12,6 @@ export type RouteHandler<TAuth extends boolean = boolean> = (
   ctx: HandlerContext<TAuth>
 ) => Response | Promise<Response>;
 
-export type AuthProvider = {
-  getSession: ({ headers }: { headers: Headers }) => Promise<TSession | null>;
-};
+export type SessionGetter = (headers: Headers) => TSession;
 
 export type { StandardSchemaV1 };

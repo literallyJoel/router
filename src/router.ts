@@ -3,7 +3,7 @@ import path from "path";
 import { Glob } from "bun";
 import { ResponseError } from "./errors/ResponseError";
 import { InternalServerError } from "./errors/GenericErrors";
-import type { HandlerContext, AuthProvider } from "./types";
+import type { HandlerContext, SessionGetter } from "./types";
 
 const methods = [
   "get",
@@ -20,7 +20,7 @@ type Method = (typeof methods)[number];
 export interface RoutesConfig {
   routesDirectory: string;
   routePrefix?: string;
-  authProvider?: AuthProvider;
+  sessionGetter?: SessionGetter;
   logger?: {
     error: (message: string, meta?: any) => void;
   };
@@ -45,17 +45,17 @@ type BunRoutesMap = Record<
 >;
 
 export async function getRoutes(config: RoutesConfig): Promise<BunRoutesMap> {
-  const { routesDirectory, routePrefix = "", authProvider, logger } = config;
+  const { routesDirectory, routePrefix = "", sessionGetter, logger } = config;
 
   const discovered = await readRoutes(routesDirectory, routePrefix);
   if (discovered.length === 0) return {};
 
-  return await parseRoutes(discovered, authProvider, logger);
+  return await parseRoutes(discovered, sessionGetter, logger);
 }
 
 async function parseRoutes(
   discovered: Discovered[],
-  authProvider?: AuthProvider,
+  sessionGetter?: SessionGetter,
   logger?: RoutesConfig["logger"]
 ): Promise<BunRoutesMap> {
   const routes: Record<string, Record<string, Function>> = {};
@@ -88,8 +88,8 @@ async function parseRoutes(
     const handler = async (request: Request, _server: Server<any>) => {
       try {
         const bunReq = request as BunRequest;
-        const session = authProvider
-          ? await authProvider.getSession({ headers: request.headers })
+        const session = sessionGetter
+          ? await sessionGetter(bunReq.headers)
           : undefined;
 
         const context: HandlerContext<boolean> = { session };

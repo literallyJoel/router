@@ -1,5 +1,5 @@
 import type { BunRequest } from "bun";
-import type { HandlerContext, AuthProvider, StandardSchemaV1 } from "./types";
+import type { HandlerContext, SessionGetter, StandardSchemaV1 } from "./types";
 import { ResponseError } from "./errors/ResponseError";
 import type { FieldError } from "./errors/ResponseError";
 import {
@@ -19,7 +19,7 @@ type RouteControllerProps<
   requiresAuthentication: TAuth;
   inputSchema?: StandardSchemaV1<any, TData>;
   validateUUIDs?: TUUIDKeys;
-  authProvider?: AuthProvider;
+  sessionGetter?: SessionGetter;
 };
 
 type Session<TAuth extends boolean> = TAuth extends true
@@ -59,7 +59,7 @@ export abstract class BaseController<
     TData,
     TUUIDKey
   >["validateUUIDs"];
-  public readonly authProvider?: AuthProvider;
+  public readonly sessionGetter?: SessionGetter;
 
   public json!: TData extends undefined ? undefined : TData;
   public session!: Session<TAuth>;
@@ -78,7 +78,7 @@ export abstract class BaseController<
       requiresAuthentication,
       inputSchema,
       validateUUIDs,
-      authProvider,
+      sessionGetter,
     } = args;
 
     this.request = request;
@@ -86,7 +86,7 @@ export abstract class BaseController<
     this.requiresAuthentication = requiresAuthentication;
     this.inputSchema = inputSchema;
     this.validateUUIDs = validateUUIDs;
-    this.authProvider = authProvider;
+    this.sessionGetter = sessionGetter;
   }
 
   async invoke(): Promise<Response> {
@@ -167,7 +167,7 @@ export abstract class BaseController<
   }
 
   private async _checkAuthStatus(): Promise<this> {
-    if (!this.authProvider) {
+    if (!this.sessionGetter) {
       if (this.requiresAuthentication) {
         this.responseError = new UnauthorizedError({
           message: "Authentication provider not configured",
@@ -176,7 +176,7 @@ export abstract class BaseController<
       return this;
     }
 
-    const session = await this.authProvider.getSession({headers: this.request.headers});
+    const session = await this.sessionGetter(this.request.headers);
 
     if (this.requiresAuthentication && !session) {
       this.responseError = new UnauthorizedError({
@@ -247,7 +247,7 @@ type ControllerConfig<
   validationSchema?: StandardSchemaV1<any, TData>;
   validateUUIDs?: TUUIDKeys;
   requiresAuthentication: TAuth;
-  authProvider?: AuthProvider;
+  sessionGetter?: SessionGetter;
 };
 
 export function createController<
@@ -275,7 +275,7 @@ export function createController<
         requiresAuthentication: config.requiresAuthentication,
         inputSchema: config.validationSchema,
         validateUUIDs: config.validateUUIDs,
-        authProvider: config.authProvider,
+        sessionGetter: config.sessionGetter,
       });
     }
 

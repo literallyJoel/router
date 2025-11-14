@@ -5,6 +5,6 @@ export * from "./errors/GenericErrors";
 export type {
   RouteHandler,
   HandlerContext,
-  AuthProvider,
+  SessionGetter,
   StandardSchemaV1,
 } from "./types";
