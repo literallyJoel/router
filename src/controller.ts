@@ -259,7 +259,7 @@ export function createController<
     controller: BaseController<TAuth, TData, TUUIDKeys>
   ) => Promise<Response>,
   config: ControllerConfig<TAuth, TData, TUUIDKeys>,
-  additionalValidator: (validated: TData) => FieldError[]
+  additionalValidator?: (validated: TData) => FieldError[]
 ): {
   new (request: BunRequest, ctx: HandlerContext<TAuth>): BaseController<
     TAuth,
