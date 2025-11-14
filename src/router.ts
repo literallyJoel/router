@@ -3,7 +3,7 @@ import path from "path";
 import { Glob } from "bun";
 import { ResponseError } from "./errors/ResponseError";
 import { InternalServerError } from "./errors/GenericErrors";
-import type { HandlerContext, SessionGetter } from "./types";
+import type { HandlerContext, SessionGetter, TSession } from "./types";
 
 const methods = [
   "get",
@@ -69,7 +69,7 @@ async function parseRoutes(
     const mod = imports[i] as {
       default: {
         new (req: BunRequest, ctx: HandlerContext<boolean>): {
-          invoke(): Promise<Response>;
+          invoke(session?: TSession): Promise<Response>;
         };
       };
     };
@@ -95,7 +95,7 @@ async function parseRoutes(
         const context: HandlerContext<boolean> = { session };
 
         const instance = new Ctor(bunReq, context);
-        return await instance.invoke();
+        return await instance.invoke(session);
       } catch (e) {
         if (e instanceof ResponseError) {
           if (e.internalError && logger) {

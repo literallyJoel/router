@@ -1,5 +1,5 @@
 import type { BunRequest } from "bun";
-import type { HandlerContext, SessionGetter, StandardSchemaV1 } from "./types";
+import type { HandlerContext, StandardSchemaV1, TSession } from "./types";
 import { ResponseError } from "./errors/ResponseError";
 import type { FieldError } from "./errors/ResponseError";
 import {
@@ -19,7 +19,6 @@ type RouteControllerProps<
   requiresAuthentication: TAuth;
   inputSchema?: StandardSchemaV1<any, TData>;
   validateUUIDs?: TUUIDKeys;
-  sessionGetter?: SessionGetter;
 };
 
 type Session<TAuth extends boolean> = TAuth extends true
@@ -59,7 +58,6 @@ export abstract class BaseController<
     TData,
     TUUIDKey
   >["validateUUIDs"];
-  public readonly sessionGetter?: SessionGetter;
 
   public json!: TData extends undefined ? undefined : TData;
   public session!: Session<TAuth>;
@@ -72,24 +70,19 @@ export abstract class BaseController<
   protected responseError?: ResponseError;
 
   protected constructor(args: RouteControllerProps<TAuth, TData, TUUIDKey>) {
-    const {
-      request,
-      ctx,
-      requiresAuthentication,
-      inputSchema,
-      validateUUIDs,
-      sessionGetter,
-    } = args;
+    const { request, ctx, requiresAuthentication, inputSchema, validateUUIDs } =
+      args;
 
     this.request = request;
     this.ctx = ctx;
     this.requiresAuthentication = requiresAuthentication;
     this.inputSchema = inputSchema;
     this.validateUUIDs = validateUUIDs;
-    this.sessionGetter = sessionGetter;
   }
 
-  async invoke(): Promise<Response> {
+  async invoke(session?: TSession): Promise<Response> {
+    this.session = session;
+    this.ctx.session = session;
     return (await this.init()).respond();
   }
 
@@ -167,26 +160,12 @@ export abstract class BaseController<
   }
 
   private async _checkAuthStatus(): Promise<this> {
-    if (!this.sessionGetter) {
-      if (this.requiresAuthentication) {
-        this.responseError = new UnauthorizedError({
-          message: "Authentication provider not configured",
-        });
-      }
-      return this;
-    }
-
-    const session = await this.sessionGetter(this.request.headers);
-
-    if (this.requiresAuthentication && !session) {
+    if (this.requiresAuthentication && !this.session) {
       this.responseError = new UnauthorizedError({
         message: "You must be logged in to view this content",
       });
       return this;
     }
-
-    this.ctx.session = session;
-    this.session = session as Session<TAuth>;
 
     return this;
   }
@@ -247,7 +226,6 @@ type ControllerConfig<
   validationSchema?: StandardSchemaV1<any, TData>;
   validateUUIDs?: TUUIDKeys;
   requiresAuthentication: TAuth;
-  sessionGetter?: SessionGetter;
 };
 
 export function createController<
@@ -275,7 +253,6 @@ export function createController<
         requiresAuthentication: config.requiresAuthentication,
         inputSchema: config.validationSchema,
         validateUUIDs: config.validateUUIDs,
-        sessionGetter: config.sessionGetter,
       });
     }
 
