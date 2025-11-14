@@ -19,7 +19,7 @@ type Method = (typeof methods)[number];
 
 export interface RoutesConfig {
   routesDirectory: string;
-  routePrefix?: string; // e.g., "/api"
+  routePrefix?: string;
   authProvider?: AuthProvider;
   logger?: {
     error: (message: string, meta?: any) => void;
@@ -82,18 +82,14 @@ async function parseRoutes(
       );
     }
 
-    const key = d.path; // already prefixed
+    const key = d.path;
     const method = d.method.toUpperCase() as Uppercase<Method>;
 
     const handler = async (request: Request, _server: Server<any>) => {
       try {
         const bunReq = request as BunRequest;
-
-        // If you have a params extractor, attach here:
-        // (bunReq as any).params = extractParamsSomehow(request.url, key);
-
         const session = authProvider
-          ? await authProvider.getSession(request.headers)
+          ? await authProvider.getSession({ headers: request.headers })
           : undefined;
 
         const context: HandlerContext<boolean> = { session };

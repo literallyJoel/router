@@ -176,7 +176,7 @@ export abstract class BaseController<
       return this;
     }
 
-    const session = await this.authProvider.getSession(this.request.headers);
+    const session = await this.authProvider.getSession({headers: this.request.headers});
 
     if (this.requiresAuthentication && !session) {
       this.responseError = new UnauthorizedError({

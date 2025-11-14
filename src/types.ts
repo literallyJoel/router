@@ -13,7 +13,7 @@ export type RouteHandler<TAuth extends boolean = boolean> = (
 ) => Response | Promise<Response>;
 
 export type AuthProvider = {
-  getSession: (headers: Headers) => Promise<TSession | null>;
+  getSession: ({ headers }: { headers: Headers }) => Promise<TSession | null>;
 };
 
 export type { StandardSchemaV1 };
