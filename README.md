@@ -39,7 +39,7 @@ const routes = await getRoutes({
   logger: {
     error: (message, meta) => console.error(message, meta),
   },
-  // params: "auto" | "off" (default "auto") — auto extracts params for bracketed paths like `/users/[id]`
+  [id]`
 });
 
 const server = serve({
@@ -222,7 +222,6 @@ throw new NotFoundError({ message: "User not found" });
   - `routePrefix?`: string (prefix all discovered routes, e.g., `/api`)
   - `authProvider?`: { `getSession(headers): Promise<any | null>` }
   - `logger?`: { `error(message, meta?)` }
-  - `params?`: "auto" | "off" (default "auto")
 
 - `createController(handler, config, additionalValidator?)`
   - `validationSchema?`: StandardSchemaV1<any, TData>
