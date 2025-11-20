@@ -7,7 +7,11 @@ import {
   UnauthorizedError,
   ValidationError,
 } from "./errors/GenericErrors";
-import { parseStandardSchema, validateUUID } from "./validation";
+import {
+  parseStandardSchema,
+  validateUUID,
+  type UUIDVersion,
+} from "./validation";
 
 type RouteControllerProps<
   TAuth extends boolean = boolean,
@@ -19,6 +23,7 @@ type RouteControllerProps<
   requiresAuthentication: TAuth;
   inputSchema?: StandardSchemaV1<any, TData>;
   validateUUIDs?: TUUIDKeys;
+  uuidVersion?: UUIDVersion;
 };
 
 type Session<TAuth extends boolean> = TAuth extends true
@@ -58,7 +63,7 @@ export abstract class BaseController<
     TData,
     TUUIDKey
   >["validateUUIDs"];
-
+  public readonly uuidVersion?: UUIDVersion;
   public json!: TData extends undefined ? undefined : TData;
   public session!: Session<TAuth>;
   public params!: ValidatedUUIDs<TUUIDKey>;
@@ -70,14 +75,21 @@ export abstract class BaseController<
   protected responseError?: ResponseError;
 
   protected constructor(args: RouteControllerProps<TAuth, TData, TUUIDKey>) {
-    const { request, ctx, requiresAuthentication, inputSchema, validateUUIDs } =
-      args;
+    const {
+      request,
+      ctx,
+      requiresAuthentication,
+      inputSchema,
+      validateUUIDs,
+      uuidVersion,
+    } = args;
 
     this.request = request;
     this.ctx = ctx;
     this.requiresAuthentication = requiresAuthentication;
     this.inputSchema = inputSchema;
     this.validateUUIDs = validateUUIDs;
+    this.uuidVersion = uuidVersion;
   }
 
   async invoke(session?: TSession): Promise<Response> {
@@ -194,7 +206,7 @@ export abstract class BaseController<
         return this;
       }
 
-      const valid = validateUUID(raw);
+      const valid = validateUUID(raw, this.uuidVersion);
 
       if (!valid) {
         this.responseError = new NotFoundError();
@@ -226,6 +238,9 @@ type ControllerConfig<
   validationSchema?: StandardSchemaV1<any, TData>;
   validateUUIDs?: TUUIDKeys;
   requiresAuthentication: TAuth;
+} & {
+  validateUUIds: TUUIDKeys;
+  uuidVersion?: UUIDVersion;
 };
 
 export function createController<
@@ -239,20 +254,25 @@ export function createController<
   config: ControllerConfig<TAuth, TData, TUUIDKeys>,
   additionalValidator?: (validated: TData) => FieldError[]
 ): {
-  new (request: BunRequest, ctx: HandlerContext<TAuth>): BaseController<
-    TAuth,
-    TData,
-    TUUIDKeys
-  >;
+  new (
+    request: BunRequest,
+    ctx: HandlerContext<TAuth>,
+    uuidVersion?: UUIDVersion
+  ): BaseController<TAuth, TData, TUUIDKeys>;
 } {
   return class extends BaseController<TAuth, TData, TUUIDKeys> {
-    constructor(request: BunRequest, ctx: HandlerContext<TAuth>) {
+    constructor(
+      request: BunRequest,
+      ctx: HandlerContext<TAuth>,
+      uuidVersion?: UUIDVersion
+    ) {
       super({
         request,
         ctx,
         requiresAuthentication: config.requiresAuthentication,
         inputSchema: config.validationSchema,
         validateUUIDs: config.validateUUIDs,
+        uuidVersion: config.uuidVersion ?? uuidVersion,
       });
     }
 

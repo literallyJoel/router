@@ -2,6 +2,9 @@ import type { StandardSchemaV1 } from "@standard-schema/spec";
 import { ValidationError } from "./errors/GenericErrors";
 import type { FieldError } from "./errors/ResponseError";
 
+const UUID_VERSIONS = [1, 2, 3, 4, 5, 6, 7, 8] as const;
+export type UUIDVersion = (typeof UUID_VERSIONS)[number];
+
 export async function parseStandardSchema<T>(
   input: unknown,
   schema: StandardSchemaV1<any, T>
@@ -23,13 +26,25 @@ export async function parseStandardSchema<T>(
 
   return resolved.value as T;
 }
+export function validateUUID(uuid: string, version?: UUIDVersion): boolean {
+  if (version !== undefined) {
+    if (version < 1 || version > 8) {
+      throw new Error("Invalid UUID version. Must be between 1 and 8.");
+    }
+  }
 
-export function validateUUID(uuid: string) {
-  const re =
-    /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/;
+  const versionPattern = version !== undefined ? `[${version}]` : `[1-8]`;
+
+  const re = new RegExp(
+    `^[0-9a-fA-F]{8}-` +
+      `[0-9a-fA-F]{4}-` +
+      `${versionPattern}[0-9a-fA-F]{3}-` +
+      `[89abAB][0-9a-fA-F]{3}-` +
+      `[0-9a-fA-F]{12}$`
+  );
+
   return re.test(uuid);
 }
-
 function mapIssues(
   issues: ReadonlyArray<StandardSchemaV1.Issue>
 ): FieldError[] {

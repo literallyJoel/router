@@ -4,6 +4,7 @@ import { Glob } from "bun";
 import { ResponseError } from "./errors/ResponseError";
 import { InternalServerError } from "./errors/GenericErrors";
 import type { HandlerContext, SessionGetter, TSession } from "./types";
+import type { UUIDVersion } from "./validation";
 
 const methods = [
   "get",
@@ -20,6 +21,7 @@ type Method = (typeof methods)[number];
 export interface RoutesConfig {
   routesDirectory: string;
   routePrefix?: string;
+  uuidVersion?: UUIDVersion;
   sessionGetter?: SessionGetter;
   logger?: {
     error: (message: string, meta?: any) => void;
@@ -45,18 +47,25 @@ type BunRoutesMap = Record<
 >;
 
 export async function getRoutes(config: RoutesConfig): Promise<BunRoutesMap> {
-  const { routesDirectory, routePrefix = "", sessionGetter, logger } = config;
+  const {
+    routesDirectory,
+    routePrefix = "",
+    sessionGetter,
+    logger,
+    uuidVersion,
+  } = config;
 
   const discovered = await readRoutes(routesDirectory, routePrefix);
   if (discovered.length === 0) return {};
 
-  return await parseRoutes(discovered, sessionGetter, logger);
+  return await parseRoutes(discovered, sessionGetter, logger, uuidVersion);
 }
 
 async function parseRoutes(
   discovered: Discovered[],
   sessionGetter?: SessionGetter,
-  logger?: RoutesConfig["logger"]
+  logger?: RoutesConfig["logger"],
+  uuidVersion?: UUIDVersion
 ): Promise<BunRoutesMap> {
   const routes: Record<string, Record<string, Function>> = {};
 
@@ -68,7 +77,11 @@ async function parseRoutes(
     const d = discovered[i]!;
     const mod = imports[i] as {
       default: {
-        new (req: BunRequest, ctx: HandlerContext<boolean>): {
+        new (
+          req: BunRequest,
+          ctx: HandlerContext<boolean>,
+          uuidVersion?: UUIDVersion
+        ): {
           invoke(session?: TSession): Promise<Response>;
         };
       };
@@ -94,7 +107,7 @@ async function parseRoutes(
 
         const context: HandlerContext<boolean> = { session };
 
-        const instance = new Ctor(bunReq, context);
+        const instance = new Ctor(bunReq, context, uuidVersion);
         return await instance.invoke(session);
       } catch (e) {
         if (e instanceof ResponseError) {
