@@ -238,8 +238,6 @@ type ControllerConfig<
   validationSchema?: StandardSchemaV1<any, TData>;
   validateUUIDs?: TUUIDKeys;
   requiresAuthentication: TAuth;
-} & {
-  validateUUIds: TUUIDKeys;
   uuidVersion?: UUIDVersion;
 };
 
