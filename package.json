@@ -18,7 +18,8 @@
     "build": "bun build ./src/index.ts --outdir ./dist --target bun --format esm && bun run build:types",
     "build:types": "tsc --declaration --emitDeclarationOnly --outDir ./dist",
     "prepublishOnly": "bun run build",
-    "dev": "bun run ./src/dev.ts"
+    "dev": "bun run ./src/dev.ts",
+    "test": "bun test"
   },
   "dependencies": {
     "@standard-schema/spec": "^1.0.0"
