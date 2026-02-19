@@ -9,11 +9,9 @@ export type HandlerContext<TAuth extends boolean = boolean> = TAuth extends true
 
 export type RouteHandler<TAuth extends boolean = boolean> = (
   req: BunRequest,
-  ctx: HandlerContext<TAuth>
+  ctx: HandlerContext<TAuth>,
 ) => Response | Promise<Response>;
 
-export type SessionGetter = (
-  headers: Headers
-) => TSession | Promise<TSession>;
+export type SessionGetter = (headers: Headers) => TSession | Promise<TSession>;
 
 export type { StandardSchemaV1 };

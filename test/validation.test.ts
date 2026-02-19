@@ -43,28 +43,29 @@ describe("validateUUID", () => {
   });
 
   test("throws for invalid version number", () => {
-    expect(() => validateUUID("550e8400-e29b-41d4-a716-446655440000", 0 as UUIDVersion)).toThrow(
-      "Invalid UUID version"
-    );
-    expect(() => validateUUID("550e8400-e29b-41d4-a716-446655440000", 9 as UUIDVersion)).toThrow(
-      "Invalid UUID version"
-    );
+    expect(() =>
+      validateUUID("550e8400-e29b-41d4-a716-446655440000", 0 as UUIDVersion),
+    ).toThrow("Invalid UUID version");
+    expect(() =>
+      validateUUID("550e8400-e29b-41d4-a716-446655440000", 9 as UUIDVersion),
+    ).toThrow("Invalid UUID version");
   });
 });
 
 function createMockSchema<T>(
-  validate: (
-    input: unknown
-  ) =>
+  validate: (input: unknown) =>
     | { value: T; issues?: undefined }
-    | { value?: undefined; issues: Array<{ message: string; path?: unknown[] }> }
+    | {
+        value?: undefined;
+        issues: Array<{ message: string; path?: unknown[] }>;
+      }
     | Promise<
         | { value: T; issues?: undefined }
         | {
             value?: undefined;
             issues: Array<{ message: string; path?: unknown[] }>;
           }
-      >
+      >,
 ): StandardSchemaV1<unknown, T> {
   return {
     "~standard": {
@@ -94,7 +95,7 @@ describe("parseStandardSchema", () => {
 
   test("handles async validate", async () => {
     const schema = createMockSchema<string>((input) =>
-      Promise.resolve({ value: String(input) })
+      Promise.resolve({ value: String(input) }),
     );
     const result = await parseStandardSchema(123, schema);
     expect(result).toBe("123");
@@ -116,7 +117,7 @@ describe("parseStandardSchema", () => {
       "~standard": { version: 2 },
     } as unknown as StandardSchemaV1<unknown, unknown>;
     await expect(parseStandardSchema({}, badSchema)).rejects.toThrow(
-      "Schema does not implement StandardSchemaV1"
+      "Schema does not implement StandardSchemaV1",
     );
   });
 
@@ -125,7 +126,7 @@ describe("parseStandardSchema", () => {
       "~standard": { version: 1, vendor: "test" },
     } as unknown as StandardSchemaV1<unknown, unknown>;
     await expect(parseStandardSchema({}, badSchema)).rejects.toThrow(
-      "Schema does not implement StandardSchemaV1"
+      "Schema does not implement StandardSchemaV1",
     );
   });
 });

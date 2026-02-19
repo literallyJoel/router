@@ -32,7 +32,7 @@ export const ValidationError = makeErrorClass("ValidationError", {
 
 function makeErrorClass<TName extends string>(
   name: TName,
-  defaults: Omit<ResponseErrorConfig, "internalError" | "fieldErrors">
+  defaults: Omit<ResponseErrorConfig, "internalError" | "fieldErrors">,
 ) {
   return class extends ResponseError {
     constructor(overrides?: Partial<ResponseErrorConfig>) {

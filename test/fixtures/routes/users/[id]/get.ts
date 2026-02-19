@@ -5,5 +5,5 @@ export default createController(
   {
     requiresAuthentication: false,
     validateUUIDs: ["id"],
-  }
+  },
 );

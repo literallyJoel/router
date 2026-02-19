@@ -65,12 +65,12 @@ async function parseRoutes(
   discovered: Discovered[],
   sessionGetter?: SessionGetter,
   logger?: RoutesConfig["logger"],
-  uuidVersion?: UUIDVersion
+  uuidVersion?: UUIDVersion,
 ): Promise<BunRoutesMap> {
   const routes: Record<string, Record<string, Function>> = {};
 
   const imports = await Promise.all(
-    discovered.map((d) => import(pathToFileURL(d.handler).toString()))
+    discovered.map((d) => import(pathToFileURL(d.handler).toString())),
   );
 
   for (let i = 0; i < discovered.length; i++) {
@@ -80,7 +80,7 @@ async function parseRoutes(
         new (
           req: BunRequest,
           ctx: HandlerContext<boolean>,
-          uuidVersion?: UUIDVersion
+          uuidVersion?: UUIDVersion,
         ): {
           invoke(session?: TSession): Promise<Response>;
         };
@@ -91,7 +91,7 @@ async function parseRoutes(
 
     if (typeof Ctor !== "function") {
       throw new Error(
-        `Route controller ${d.path}/${d.method} must default export a class.`
+        `Route controller ${d.path}/${d.method} must default export a class.`,
       );
     }
 
@@ -149,7 +149,7 @@ async function parseRoutes(
 
 async function readRoutes(
   dir: string,
-  routePrefix: string
+  routePrefix: string,
 ): Promise<Discovered[]> {
   const glob = new Glob("**/*.{ts,js}");
   const handlers: Discovered[] = [];

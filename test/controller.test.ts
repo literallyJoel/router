@@ -3,7 +3,7 @@ import { createController } from "../src/controller";
 import type { StandardSchemaV1 } from "@standard-schema/spec";
 
 function createMockRequest(
-  overrides: Partial<Omit<Request, "body">> & { body?: string } = {}
+  overrides: Partial<Omit<Request, "body">> & { body?: string } = {},
 ) {
   return new Request("http://localhost/test", {
     method: "POST",
@@ -16,9 +16,14 @@ function createMockRequest(
 }
 
 function createMockSchema<T>(
-  validate: (input: unknown) =>
+  validate: (
+    input: unknown,
+  ) =>
     | { value: T; issues?: undefined }
-    | { value?: undefined; issues: Array<{ message: string; path?: unknown[] }> }
+    | {
+        value?: undefined;
+        issues: Array<{ message: string; path?: unknown[] }>;
+      },
 ): StandardSchemaV1<any, T> {
   return {
     "~standard": {
@@ -33,7 +38,7 @@ describe("createController", () => {
   test("returns 200 with JSON body when handler succeeds", async () => {
     const Controller = createController(
       async (c) => Response.json({ ok: true }),
-      { requiresAuthentication: false }
+      { requiresAuthentication: false },
     );
     const req = createMockRequest();
     const instance = new Controller(req, { session: undefined });
@@ -45,7 +50,7 @@ describe("createController", () => {
   test("returns 401 when requiresAuthentication and no session", async () => {
     const Controller = createController(
       async () => Response.json({ ok: true }),
-      { requiresAuthentication: true }
+      { requiresAuthentication: true },
     );
     const req = createMockRequest();
     const instance = new Controller(req, { session: undefined });
@@ -61,7 +66,7 @@ describe("createController", () => {
         expect(c.session).toEqual({ user: { id: 1 } });
         return Response.json({ ok: true });
       },
-      { requiresAuthentication: true }
+      { requiresAuthentication: true },
     );
     const req = createMockRequest();
     const session = { user: { id: 1 } };
@@ -86,7 +91,7 @@ describe("createController", () => {
       {
         requiresAuthentication: false,
         validationSchema: schema,
-      }
+      },
     );
     const req = createMockRequest({
       body: JSON.stringify({ name: "test" }),
@@ -106,7 +111,7 @@ describe("createController", () => {
       {
         requiresAuthentication: false,
         validationSchema: schema,
-      }
+      },
     );
     const req = createMockRequest({
       body: JSON.stringify({ name: "" }),
@@ -127,7 +132,7 @@ describe("createController", () => {
       {
         requiresAuthentication: false,
         validationSchema: schema,
-      }
+      },
     );
     const req = createMockRequest({
       body: "not valid json{{{",
@@ -148,7 +153,7 @@ describe("createController", () => {
       {
         requiresAuthentication: false,
         validateUUIDs: ["id"],
-      }
+      },
     );
     const req = createMockRequest();
     req.params = { id: "550e8400-e29b-41d4-a716-446655440000" };
@@ -166,7 +171,7 @@ describe("createController", () => {
       {
         requiresAuthentication: false,
         validateUUIDs: ["id"],
-      }
+      },
     );
     const req = createMockRequest();
     req.params = { id: "not-a-uuid" };
@@ -181,7 +186,7 @@ describe("createController", () => {
       {
         requiresAuthentication: false,
         validateUUIDs: ["id"],
-      }
+      },
     );
     const req = createMockRequest();
     req.params = {};
@@ -205,7 +210,7 @@ describe("createController", () => {
           return [{ field: "email", message: "Must be valid email" }];
         }
         return [];
-      }
+      },
     );
     const req = createMockRequest({
       body: JSON.stringify({ email: "invalid" }),
@@ -235,7 +240,7 @@ describe("createController", () => {
         return validated.value < 0
           ? [{ field: "value", message: "Must be positive" }]
           : [];
-      }
+      },
     );
     const req = createMockRequest({
       body: JSON.stringify({ value: -1 }),

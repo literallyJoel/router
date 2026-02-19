@@ -4,7 +4,10 @@ import path from "path";
 
 const fixturesDir = path.join(import.meta.dir, "fixtures", "routes");
 
-type RouteHandler = (req: Request, server: unknown) => Response | Promise<Response>;
+type RouteHandler = (
+  req: Request,
+  server: unknown,
+) => Response | Promise<Response>;
 function getHandler(route: unknown): RouteHandler | undefined {
   if (typeof route === "function") return route as RouteHandler;
   const map = route as Partial<Record<string, RouteHandler>> | undefined;
@@ -42,7 +45,8 @@ describe("getRoutes", () => {
 
   test("POST /users returns 200 with correct body", async () => {
     const routes = await getRoutes({ routesDirectory: fixturesDir });
-    const handler = (routes["/users"] as Partial<Record<"POST", RouteHandler>>)?.POST;
+    const handler = (routes["/users"] as Partial<Record<"POST", RouteHandler>>)
+      ?.POST;
     if (typeof handler !== "function") {
       throw new Error("Expected function handler");
     }
