@@ -250,7 +250,9 @@ export function createController<
     controller: BaseController<TAuth, TData, TUUIDKeys>
   ) => Promise<Response>,
   config: ControllerConfig<TAuth, TData, TUUIDKeys>,
-  additionalValidator?: (validated: TData) => FieldError[]
+  additionalValidator?: (
+    validated: TData
+  ) => FieldError[] | Promise<FieldError[]>
 ): {
   new (
     request: BunRequest,
@@ -281,7 +283,8 @@ export function createController<
     protected override async additionalValidation(
       validated: Readonly<TData>
     ): Promise<FieldError[]> {
-      return additionalValidator?.(validated as TData) ?? [];
+      const result = additionalValidator?.(validated as TData);
+      return result !== undefined ? await result : [];
     }
   };
 }

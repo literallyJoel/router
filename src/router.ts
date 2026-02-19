@@ -24,7 +24,7 @@ export interface RoutesConfig {
   uuidVersion?: UUIDVersion;
   sessionGetter?: SessionGetter;
   logger?: {
-    error: (message: string, meta?: any) => void;
+    error: (message: string, meta?: unknown) => void;
   };
 }
 

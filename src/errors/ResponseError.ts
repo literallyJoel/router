@@ -22,18 +22,18 @@ export class ResponseError extends Error {
     internalError,
   }: ResponseErrorConfig) {
     super(message);
+    Object.setPrototypeOf(this, new.target.prototype);
+    this.name = "ResponseError";
     this.responseCode = responseCode;
     this.data = data;
     this.fieldErrors = fieldErrors;
     this.internalError = internalError;
   }
 
-  toResponse() {
-    const _response: Record<string, string> = {};
-    _response.message = this.message;
-    if (this.data) _response.data = JSON.stringify(this.data);
-    if (this.fieldErrors) _response.fields = JSON.stringify(this.fieldErrors);
-
-    return Response.json(_response, { status: this.responseCode });
+  toResponse(): Response {
+    const body: Record<string, unknown> = { message: this.message };
+    if (this.data) body.data = this.data;
+    if (this.fieldErrors) body.fields = this.fieldErrors;
+    return Response.json(body, { status: this.responseCode });
   }
 }
