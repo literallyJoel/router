@@ -7,7 +7,7 @@ export type UUIDVersion = (typeof UUID_VERSIONS)[number];
 
 export async function parseStandardSchema<T>(
   input: unknown,
-  schema: StandardSchemaV1<any, T>
+  schema: StandardSchemaV1<any, T>,
 ): Promise<T> {
   const props = (schema as StandardSchemaV1)["~standard"];
   if (!props || props.version !== 1 || typeof props.validate !== "function") {
@@ -40,13 +40,13 @@ export function validateUUID(uuid: string, version?: UUIDVersion): boolean {
       `[0-9a-fA-F]{4}-` +
       `${versionPattern}[0-9a-fA-F]{3}-` +
       `[89abAB][0-9a-fA-F]{3}-` +
-      `[0-9a-fA-F]{12}$`
+      `[0-9a-fA-F]{12}$`,
   );
 
   return re.test(uuid);
 }
 function mapIssues(
-  issues: ReadonlyArray<StandardSchemaV1.Issue>
+  issues: ReadonlyArray<StandardSchemaV1.Issue>,
 ): FieldError[] {
   return issues.map((i) => ({
     field: formatPath(i.path),
@@ -55,7 +55,7 @@ function mapIssues(
 }
 
 function formatPath(
-  path: ReadonlyArray<PropertyKey | StandardSchemaV1.PathSegment> | undefined
+  path: ReadonlyArray<PropertyKey | StandardSchemaV1.PathSegment> | undefined,
 ): string {
   if (!path || path.length === 0) return "";
   return path

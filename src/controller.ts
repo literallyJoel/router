@@ -16,7 +16,7 @@ import {
 type RouteControllerProps<
   TAuth extends boolean = boolean,
   TData = unknown,
-  TUUIDKeys extends string[] | undefined = string[] | undefined
+  TUUIDKeys extends string[] | undefined = string[] | undefined,
 > = {
   request: BunRequest & { params?: Record<string, string | undefined> };
   ctx: HandlerContext<TAuth>;
@@ -44,7 +44,7 @@ type ValidatedUUIDs<T extends readonly string[] | undefined> =
 export abstract class BaseController<
   TAuth extends boolean = boolean,
   TData = unknown,
-  TUUIDKey extends string[] | undefined = string[] | undefined
+  TUUIDKey extends string[] | undefined = string[] | undefined,
 > {
   public readonly request: RouteControllerProps<
     TAuth,
@@ -155,7 +155,7 @@ export abstract class BaseController<
     try {
       const out = await parseStandardSchema<TData>(
         jsonUnsafe,
-        this.inputSchema
+        this.inputSchema,
       );
       this.json = out as TData extends undefined ? undefined : TData;
     } catch (err) {
@@ -224,7 +224,7 @@ export abstract class BaseController<
   abstract run(): Promise<Response>;
 
   protected additionalValidation(
-    validated: Readonly<TData>
+    validated: Readonly<TData>,
   ): Promise<FieldError[]> | FieldError[] {
     return [];
   }
@@ -233,7 +233,7 @@ export abstract class BaseController<
 type ControllerConfig<
   TAuth extends boolean,
   TData,
-  TUUIDKeys extends string[] | undefined = string[] | undefined
+  TUUIDKeys extends string[] | undefined = string[] | undefined,
 > = {
   validationSchema?: StandardSchemaV1<any, TData>;
   validateUUIDs?: TUUIDKeys;
@@ -244,25 +244,27 @@ type ControllerConfig<
 export function createController<
   TAuth extends boolean,
   TData = unknown,
-  TUUIDKeys extends string[] | undefined = undefined
+  TUUIDKeys extends string[] | undefined = undefined,
 >(
   handler: (
-    controller: BaseController<TAuth, TData, TUUIDKeys>
+    controller: BaseController<TAuth, TData, TUUIDKeys>,
   ) => Promise<Response>,
   config: ControllerConfig<TAuth, TData, TUUIDKeys>,
-  additionalValidator?: (validated: TData) => FieldError[]
+  additionalValidator?: (
+    validated: TData,
+  ) => FieldError[] | Promise<FieldError[]>,
 ): {
   new (
     request: BunRequest,
     ctx: HandlerContext<TAuth>,
-    uuidVersion?: UUIDVersion
+    uuidVersion?: UUIDVersion,
   ): BaseController<TAuth, TData, TUUIDKeys>;
 } {
   return class extends BaseController<TAuth, TData, TUUIDKeys> {
     constructor(
       request: BunRequest,
       ctx: HandlerContext<TAuth>,
-      uuidVersion?: UUIDVersion
+      uuidVersion?: UUIDVersion,
     ) {
       super({
         request,
@@ -279,9 +281,10 @@ export function createController<
     }
 
     protected override async additionalValidation(
-      validated: Readonly<TData>
+      validated: Readonly<TData>,
     ): Promise<FieldError[]> {
-      return additionalValidator?.(validated as TData) ?? [];
+      const result = additionalValidator?.(validated as TData);
+      return result !== undefined ? await result : [];
     }
   };
 }

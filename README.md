@@ -1,6 +1,7 @@
 # @literallyjoel/router
 
 A minimal filesystem router + controller framework for Bun that:
+
 - Uses Bun’s native route matching (`serve({ routes })`) — no custom matcher on the hot path
 - Autoloads controllers from files like `get.ts`, `post.ts`, etc.
 - Validates request JSON via Standard Schema V1 (Zod, Valibot, ArkType, Yup, Joi, Effect Schema, …)
@@ -111,7 +112,7 @@ export default createController(
     validationSchema: Schema, // Standard Schema via Zod
     requiresAuthentication: false,
   },
-  () => []
+  () => [],
 );
 ```
 
@@ -129,7 +130,7 @@ const Schema = v.object({
 export default createController(
   async (ctrl) => Response.json({ user: ctrl.json }),
   { validationSchema: Schema, requiresAuthentication: false },
-  () => []
+  () => [],
 );
 ```
 
@@ -144,7 +145,7 @@ const Schema = type({ username: "string.min(3)", email: "string.email" });
 export default createController(
   async (ctrl) => Response.json({ user: ctrl.json }),
   { validationSchema: Schema, requiresAuthentication: false },
-  () => []
+  () => [],
 );
 ```
 
@@ -160,11 +161,12 @@ export default createController(
     requiresAuthentication: false,
     validateUUIDs: ["userId"],
   },
-  () => []
+  () => [],
 );
 ```
 
 Notes:
+
 - Bun’s native `routes` map doesn’t populate `req.params`. This package adds params only for paths discovered with bracket segments, keeping the overhead minimal (compiled once at boot; O(segments) match per request for those routes only).
 - Static routes incur zero param-extraction overhead.
 
@@ -192,12 +194,11 @@ This library accepts any validator that implements Standard Schema V1:
 - Validation failures are returned as `ValidationError` (400) with a standardized `fields` array.
 
 Example error response:
+
 ```json
 {
   "message": "Bad Request",
-  "fields": [
-    { "field": "email", "message": "Invalid email" }
-  ]
+  "fields": [{ "field": "email", "message": "Invalid email" }]
 }
 ```
 
@@ -211,6 +212,7 @@ Example error response:
 - InternalServerError (500)
 
 Usage:
+
 ```ts
 throw new NotFoundError({ message: "User not found" });
 ```
@@ -244,6 +246,7 @@ npm publish --access public
 ```
 
 package.json should include:
+
 ```json
 {
   "type": "module",
