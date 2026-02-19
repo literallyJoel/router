@@ -19,9 +19,25 @@ export async function parseStandardSchema<T>(
   const result = props.validate(input);
   const resolved = result instanceof Promise ? await result : result;
 
-  if (resolved.issues) {
+  if (!resolved || typeof resolved !== "object") {
+    throw new ValidationError({
+      message: "Schema returned invalid validation result",
+    });
+  }
+
+  if (
+    "issues" in resolved &&
+    Array.isArray(resolved.issues) &&
+    resolved.issues.length > 0
+  ) {
     const fieldErrors = mapIssues(resolved.issues);
     throw new ValidationError({ fieldErrors });
+  }
+
+  if (!("value" in resolved)) {
+    throw new ValidationError({
+      message: "Schema returned invalid validation result",
+    });
   }
 
   return resolved.value as T;
