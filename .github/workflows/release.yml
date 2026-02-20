@@ -21,11 +21,26 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Validate GitHub App secrets
+        env:
+          RELEASE_APP_ID: ${{ secrets.RELEASE_APP_ID }}
+          RELEASE_APP_PRIVATE_KEY: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${RELEASE_APP_ID}" ]; then
+            echo "Missing GitHub secret RELEASE_APP_ID." >&2
+            exit 1
+          fi
+          if [ -z "${RELEASE_APP_PRIVATE_KEY}" ]; then
+            echo "Missing GitHub secret RELEASE_APP_PRIVATE_KEY." >&2
+            exit 1
+          fi
+
       - name: Generate GitHub App token
         id: app_token
         uses: actions/create-github-app-token@v1
         with:
-          app-id: ${{ secrets.RELASE_APP_ID }}
+          app-id: ${{ secrets.RELEASE_APP_ID }}
           private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
 
       - name: Setup Node
