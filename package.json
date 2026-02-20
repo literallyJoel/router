@@ -15,9 +15,11 @@
     "dist"
   ],
   "scripts": {
-    "build": "bun build ./src/index.ts --outdir ./dist --target bun --format esm && bun run build:types",
-    "build:types": "tsc --declaration --emitDeclarationOnly --outDir ./dist",
-    "prepublishOnly": "bun run build",
+    "clean": "rm -rf ./dist",
+    "build": "bun run clean && bun build ./src/index.ts --outdir ./dist --target bun --format esm && bun run build:types",
+    "build:types": "tsc -p ./tsconfig.build.json",
+    "check": "bun test && bunx tsc --noEmit",
+    "prepublishOnly": "bun run check && bun run build",
     "dev": "bun run ./src/dev.ts",
     "test": "bun test"
   },

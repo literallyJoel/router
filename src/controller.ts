@@ -93,8 +93,9 @@ export abstract class BaseController<
   }
 
   async invoke(session?: TSession): Promise<Response> {
-    this.session = session;
-    this.ctx.session = session;
+    const resolvedSession = (session ?? this.ctx.session) as TSession;
+    this.session = resolvedSession;
+    this.ctx.session = resolvedSession;
     return (await this.init()).respond();
   }
 

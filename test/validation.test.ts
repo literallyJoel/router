@@ -129,4 +129,14 @@ describe("parseStandardSchema", () => {
       "Schema does not implement StandardSchemaV1",
     );
   });
+
+  test("throws ValidationError when schema result has no value or issues", async () => {
+    const malformedSchema = createMockSchema<unknown>(
+      () => ({}) as unknown as { value: unknown },
+    );
+
+    await expect(parseStandardSchema({}, malformedSchema)).rejects.toThrow(
+      "Schema returned invalid validation result",
+    );
+  });
 });
