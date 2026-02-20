@@ -61,13 +61,16 @@ jobs:
 
       - name: Commit and push version bump
         if: ${{ steps.versioning.outputs.did_bump == 'true' && github.ref_name == 'master' }}
+        env:
+          RELEASE_BOT_TOKEN: ${{ secrets.RELEASE_BOT_TOKEN }}
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote set-url origin "https://x-access-token:${RELEASE_BOT_TOKEN}@github.com/${{ github.repository }}.git"
           git add package.json
           git commit -m "chore(release): bump version to ${{ steps.versioning.outputs.release_version }} [skip release]"
-          git push
+          git push origin HEAD:master
 
       - name: Skip if version already exists on npm
         id: npm_check
