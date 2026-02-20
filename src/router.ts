@@ -161,9 +161,7 @@ async function readRoutes(
 
     const dirPath = path.dirname(file);
     const relative =
-      dirPath === "."
-        ? "/"
-        : "/" + dirPath.split(path.sep).join("/").toLowerCase();
+      dirPath === "." ? "/" : "/" + dirPath.split(path.sep).join("/");
     const routePath = (routePrefix + relative).replace(/\/{2,}/g, "/");
 
     handlers.push({

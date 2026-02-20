@@ -16,9 +16,7 @@ function createMockRequest(
 }
 
 function createMockSchema<T>(
-  validate: (
-    input: unknown,
-  ) =>
+  validate: (input: unknown) =>
     | { value: T; issues?: undefined }
     | {
         value?: undefined;
@@ -72,6 +70,23 @@ describe("createController", () => {
     const session = { user: { id: 1 } };
     const instance = new Controller(req, { session });
     const res = await instance.invoke(session);
+    expect(res.status).toBe(200);
+  });
+
+  test("uses ctx.session when invoke is called without a session argument", async () => {
+    const session = { user: { id: 1 } };
+    const Controller = createController(
+      async (c) => {
+        expect(c.session).toEqual(session);
+        return Response.json({ ok: true });
+      },
+      { requiresAuthentication: true },
+    );
+
+    const req = createMockRequest();
+    const instance = new Controller(req, { session });
+    const res = await instance.invoke();
+
     expect(res.status).toBe(200);
   });
 

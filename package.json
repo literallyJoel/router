@@ -1,6 +1,6 @@
 {
   "name": "@literallyjoel/router",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "Bun router/controllers with Standard Schema validation",
   "type": "module",
   "main": "./dist/index.js",
@@ -15,9 +15,11 @@
     "dist"
   ],
   "scripts": {
-    "build": "bun build ./src/index.ts --outdir ./dist --target bun --format esm && bun run build:types",
-    "build:types": "tsc --declaration --emitDeclarationOnly --outDir ./dist",
-    "prepublishOnly": "bun run build",
+    "clean": "rm -rf ./dist",
+    "build": "bun run clean && bun build ./src/index.ts --outdir ./dist --target bun --format esm && bun run build:types",
+    "build:types": "tsc -p ./tsconfig.build.json",
+    "check": "bun test && bunx tsc --noEmit",
+    "prepublishOnly": "bun run check && bun run build",
     "dev": "bun run ./src/dev.ts",
     "test": "bun test"
   },
@@ -44,6 +46,6 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/literallyjoel/router.git"
+    "url": "git+https://github.com/literallyJoel/router.git"
   }
 }

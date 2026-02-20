@@ -1,0 +1,164 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  release:
+    if: ${{ github.event_name == 'workflow_dispatch' || !contains(github.event.head_commit.message, '[skip release]') }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Validate GitHub App secrets
+        env:
+          RELEASE_APP_ID: ${{ secrets.RELEASE_APP_ID }}
+          RELEASE_APP_PRIVATE_KEY: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${RELEASE_APP_ID}" ]; then
+            echo "Missing GitHub secret RELEASE_APP_ID." >&2
+            exit 1
+          fi
+          if [ -z "${RELEASE_APP_PRIVATE_KEY}" ]; then
+            echo "Missing GitHub secret RELEASE_APP_PRIVATE_KEY." >&2
+            exit 1
+          fi
+
+      - name: Generate GitHub App token
+        id: app_token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+
+      - name: Checkout (using GitHub App token)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ steps.app_token.outputs.token }}
+
+      - name: Configure authenticated remote (GitHub App)
+        run: |
+          git remote set-url origin \
+            "https://x-access-token:${{ steps.app_token.outputs.token }}@github.com/${{ github.repository }}.git"
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Update npm
+        run: npm install -g npm@latest
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.9
+
+      - name: Decide whether to bump patch
+        id: versioning
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          CURRENT_VERSION="$(node -p "JSON.parse(require('fs').readFileSync('package.json','utf8')).version")"
+          PREV_VERSION=""
+
+          if [ "${{ github.event_name }}" = "push" ]; then
+            BEFORE_SHA="${{ github.event.before }}"
+            if [ -n "$BEFORE_SHA" ] && \
+               [ "$BEFORE_SHA" != "0000000000000000000000000000000000000000" ]; then
+              PREV_VERSION="$(
+                git show "$BEFORE_SHA:package.json" 2>/dev/null | \
+                node -p "JSON.parse(require('fs').readFileSync(0,'utf8')).version" \
+                || true
+              )"
+            fi
+          elif git rev-parse --verify HEAD~1 >/dev/null 2>&1; then
+            PREV_VERSION="$(
+              git show HEAD~1:package.json 2>/dev/null | \
+              node -p "JSON.parse(require('fs').readFileSync(0,'utf8')).version" \
+              || true
+            )"
+          fi
+
+          if [ -n "$PREV_VERSION" ] && [ "$CURRENT_VERSION" != "$PREV_VERSION" ]; then
+            echo "Version was incremented manually ($PREV_VERSION -> $CURRENT_VERSION)."
+            echo "did_bump=false" >> "$GITHUB_OUTPUT"
+            echo "release_version=$CURRENT_VERSION" >> "$GITHUB_OUTPUT"
+          else
+            npm version patch --no-git-tag-version
+            NEW_VERSION="$(node -p "JSON.parse(require('fs').readFileSync('package.json','utf8')).version")"
+            echo "did_bump=true" >> "$GITHUB_OUTPUT"
+            echo "release_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit and push version bump
+        if: ${{ steps.versioning.outputs.did_bump == 'true' && github.ref_name == 'master' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "release-bot"
+          git config user.email "release-bot@users.noreply.github.com"
+
+          git add package.json
+          git commit -m "chore(release): bump version to ${{ steps.versioning.outputs.release_version }} [skip release]"
+          git push origin HEAD:master
+
+      - name: Skip if version already exists on npm
+        id: npm_check
+        shell: bash
+        run: |
+          set -euo pipefail
+          PKG_NAME="$(node -p "JSON.parse(require('fs').readFileSync('package.json','utf8')).name")"
+          REL_VERSION="${{ steps.versioning.outputs.release_version }}"
+          if npm view "${PKG_NAME}@${REL_VERSION}" version >/dev/null 2>&1; then
+            echo "already_published=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "already_published=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install dependencies
+        if: ${{ steps.npm_check.outputs.already_published != 'true' }}
+        run: bun install --frozen-lockfile
+
+      - name: Publish to npm
+        if: ${{ steps.npm_check.outputs.already_published != 'true' }}
+        run: npm publish --access public --provenance
+
+      - name: Create GitHub Release
+        if: ${{ steps.npm_check.outputs.already_published != 'true' }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "v${{ steps.versioning.outputs.release_version }}"
+          name: "v${{ steps.versioning.outputs.release_version }}"
+          generate_release_notes: true
+          make_latest: true
+          token: ${{ steps.app_token.outputs.token }}
+
+      - name: Create GitHub Release
+        if: ${{ steps.npm_check.outputs.already_published != 'true' }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "v${{ steps.versioning.outputs.release_version }}"
+          name: "v${{ steps.versioning.outputs.release_version }}"
+          generate_release_notes: true
+          make_latest: true
+          token: ${{ steps.app_token.outputs.token }}
+
+      - name: Summary
+        run: |
+          echo "### Release Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Field | Value |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| --- | --- |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Version | \`${{ steps.versioning.outputs.release_version }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Auto-bumped | \`${{ steps.versioning.outputs.did_bump }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Already published | \`${{ steps.npm_check.outputs.already_published }}\` |" >> "$GITHUB_STEP_SUMMARY"

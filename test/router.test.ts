@@ -88,4 +88,13 @@ describe("getRoutes", () => {
     expect(routes["/api/users"]).toBeDefined();
     expect(routes["/api/users/[id]"]).toBeDefined();
   });
+
+  test("preserves directory casing in route paths", async () => {
+    const routes = await getRoutes({
+      routesDirectory: fixturesDir,
+    });
+
+    expect(routes["/CamelCase"]).toBeDefined();
+    expect(routes["/camelcase"]).toBeUndefined();
+  });
 });

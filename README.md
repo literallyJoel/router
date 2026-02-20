@@ -31,16 +31,13 @@ import { getRoutes } from "@literallyjoel/router";
 const routes = await getRoutes({
   routesDirectory: "./src/routes",
   routePrefix: "/api", // optional; you can also include 'api' in your directory structure
-  authProvider: {
-    getSession: async (headers) => {
-      const token = headers.get("authorization");
-      return token ? { user: { id: "123" } } : null;
-    },
+  sessionGetter: async (headers) => {
+    const token = headers.get("authorization");
+    return token ? { user: { id: "123" } } : null;
   },
   logger: {
     error: (message, meta) => console.error(message, meta),
   },
-  [id]`
 });
 
 const server = serve({
@@ -90,7 +87,6 @@ Create controllers with `createController(handler, config, additionalValidator?)
 - `validationSchema`: any Standard Schema V1-compliant schema (Zod, Valibot, ArkType, Yup, Joi, …)
 - `requiresAuthentication`: boolean
 - `validateUUIDs`: string[] of param keys to validate as UUID
-- `authProvider`: override per-controller if desired (otherwise uses the one from `getRoutes`)
 
 Example (Zod):
 
@@ -172,15 +168,13 @@ Notes:
 
 ## Authentication
 
-Provide an `authProvider` in `getRoutes()` to enable sessions for all routes:
+Provide a `sessionGetter` in `getRoutes()` to enable sessions for all routes:
 
 ```ts
-authProvider: {
-  getSession: async (headers) => {
-    const token = headers.get("authorization");
-    return token ? { user: { id: "123" } } : null;
-  },
-}
+sessionGetter: async (headers) => {
+  const token = headers.get("authorization");
+  return token ? { user: { id: "123" } } : null;
+};
 ```
 
 If a controller sets `requiresAuthentication: true` and session is missing, the controller responds with 401 automatically.
@@ -222,14 +216,13 @@ throw new NotFoundError({ message: "User not found" });
 - `getRoutes(options)`
   - `routesDirectory`: string
   - `routePrefix?`: string (prefix all discovered routes, e.g., `/api`)
-  - `authProvider?`: { `getSession(headers): Promise<any | null>` }
+  - `sessionGetter?`: `(headers: Headers) => Promise<any | null> | any | null`
   - `logger?`: { `error(message, meta?)` }
 
 - `createController(handler, config, additionalValidator?)`
   - `validationSchema?`: StandardSchemaV1<any, TData>
   - `validateUUIDs?`: string[]
   - `requiresAuthentication`: boolean
-  - `authProvider?`: AuthProvider
 
 - `BaseController`
   - `request`: BunRequest
