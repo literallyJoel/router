@@ -52,7 +52,11 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Update npm
+        run: npm install -g npm@latest
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -129,8 +133,6 @@ jobs:
       - name: Publish to npm
         if: ${{ steps.npm_check.outputs.already_published != 'true' }}
         run: npm publish --access public --provenance
-        env:
-          NPM_CONFIG_REGISTRY: "https://registry.npmjs.org/"
 
       - name: Create GitHub Release
         if: ${{ steps.npm_check.outputs.already_published != 'true' }}
