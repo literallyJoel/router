@@ -53,7 +53,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-          registry-url: "https://registry.npmjs.org"
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -130,9 +129,24 @@ jobs:
       - name: Publish to npm
         if: ${{ steps.npm_check.outputs.already_published != 'true' }}
         run: npm publish --access public --provenance
+        env:
+          NPM_CONFIG_REGISTRY: "https://registry.npmjs.org/"
+
+      - name: Create GitHub Release
+        if: ${{ steps.npm_check.outputs.already_published != 'true' }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "v${{ steps.versioning.outputs.release_version }}"
+          name: "v${{ steps.versioning.outputs.release_version }}"
+          generate_release_notes: true
+          make_latest: true
+          token: ${{ steps.app_token.outputs.token }}
 
       - name: Summary
         run: |
-          echo "Release version: ${{ steps.versioning.outputs.release_version }}"
-          echo "Bumped automatically: ${{ steps.versioning.outputs.did_bump }}"
-          echo "Already published: ${{ steps.npm_check.outputs.already_published }}"
+          echo "### Release Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Field | Value |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| --- | --- |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Version | \`${{ steps.versioning.outputs.release_version }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Auto-bumped | \`${{ steps.versioning.outputs.did_bump }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Already published | \`${{ steps.npm_check.outputs.already_published }}\` |" >> "$GITHUB_STEP_SUMMARY"
