@@ -3,8 +3,13 @@ import { ValidationError } from "./errors/GenericErrors";
 import type { FieldError } from "./errors/ResponseError";
 
 const UUID_VERSIONS = [1, 2, 3, 4, 5, 6, 7, 8] as const;
+/** Supported UUID versions for path-param validation. */
 export type UUIDVersion = (typeof UUID_VERSIONS)[number];
 
+/**
+ * Validates/parses unknown input using a Standard Schema V1 schema.
+ * Throws `ValidationError` when schema shape or validation output is invalid.
+ */
 export async function parseStandardSchema<T>(
   input: unknown,
   schema: StandardSchemaV1<any, T>,
@@ -42,6 +47,8 @@ export async function parseStandardSchema<T>(
 
   return resolved.value as T;
 }
+
+/** Returns whether a UUID is valid for any supported version or a specific one. */
 export function validateUUID(uuid: string, version?: UUIDVersion): boolean {
   if (version !== undefined) {
     if (version < 1 || version > 8) {
@@ -61,6 +68,8 @@ export function validateUUID(uuid: string, version?: UUIDVersion): boolean {
 
   return re.test(uuid);
 }
+
+/** Converts Standard Schema issues into the public field-error format. */
 function mapIssues(
   issues: ReadonlyArray<StandardSchemaV1.Issue>,
 ): FieldError[] {
@@ -70,6 +79,7 @@ function mapIssues(
   }));
 }
 
+/** Formats a Standard Schema path into a dot/bracket field path string. */
 function formatPath(
   path: ReadonlyArray<PropertyKey | StandardSchemaV1.PathSegment> | undefined,
 ): string {

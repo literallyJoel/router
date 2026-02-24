@@ -43,53 +43,96 @@ type ValidatedUUIDs<T extends readonly string[] | undefined> =
       }
     : Record<string, string | undefined>;
 
+/** Raw query parameter value before schema parsing/coercion. */
 export type RawQueryValue = string | string[] | undefined;
+/**
+ * Raw query object preserving repeated keys as arrays.
+ *
+ * @example
+ * `?page=1&tag=bun&tag=router` becomes:
+ * `{ page: "1", tag: ["bun", "router"] }`
+ */
 export type RawQuery = Record<string, RawQueryValue>;
 
+/**
+ * Base controller lifecycle and validated request data accessors.
+ * `createController` returns concrete subclasses of this class.
+ *
+ * @example
+ * ```ts
+ * export default createController(
+ *   async (ctrl) => {
+ *     return Response.json({
+ *       body: ctrl.json,
+ *       query: ctrl.query,
+ *       userId: ctrl.user?.id,
+ *     });
+ *   },
+ *   { requiresAuthentication: false },
+ * );
+ * ```
+ */
 export abstract class BaseController<
   TAuth extends boolean = boolean,
   TData = unknown,
   TUUIDKey extends string[] | undefined = string[] | undefined,
   TQuery = undefined,
 > {
+  /** Original Bun request object. */
   public readonly request: RouteControllerProps<
     TAuth,
     TData,
     TUUIDKey,
     TQuery
   >["request"];
+  /** Runtime context passed to the controller, including session information. */
   public readonly ctx: RouteControllerProps<
     TAuth,
     TData,
     TUUIDKey,
     TQuery
   >["ctx"];
+  /** Whether this controller requires an authenticated session. */
   public readonly requiresAuthentication: TAuth;
+  /** Optional Standard Schema used to validate `request.json()`. */
   public readonly inputSchema?: RouteControllerProps<
     TAuth,
     TData,
     TUUIDKey,
     TQuery
   >["inputSchema"];
+  /** Optional Standard Schema used to validate parsed query parameters. */
   public readonly querySchema?: RouteControllerProps<
     TAuth,
     TData,
     TUUIDKey,
     TQuery
   >["querySchema"];
+  /** Optional list of route param keys that must be valid UUIDs. */
   public readonly validateUUIDs?: RouteControllerProps<
     TAuth,
     TData,
     TUUIDKey,
     TQuery
   >["validateUUIDs"];
+  /** Optional UUID version constraint for validated UUID params. */
   public readonly uuidVersion?: UUIDVersion;
+  /** Native URL query API for low-level access to query params. */
   public readonly searchParams: URLSearchParams;
+  /** Validated request body (when `validationSchema` is configured). */
   public json!: TData extends undefined ? undefined : TData;
+  /**
+   * Parsed query params.
+   * - Without `querySchema`: raw `RawQuery`.
+   * - With `querySchema`: validated/coerced `TQuery`.
+   */
   public query!: TQuery extends undefined ? RawQuery : TQuery;
+  /** Resolved session for this request. */
   public session!: Session<TAuth>;
+  /** Validated UUID params configured by `validateUUIDs`. */
   public params!: ValidatedUUIDs<TUUIDKey>;
 
+  /** Convenience accessor for `session.user` with auth-aware typing. */
   get user(): User<TAuth> {
     return this.session?.user as User<TAuth>;
   }
@@ -119,6 +162,11 @@ export abstract class BaseController<
     this.searchParams = new URL(request.url).searchParams;
   }
 
+  /**
+   * Runs controller initialization (auth + validation) and returns a response.
+   *
+   * @param session Optional session override. If omitted, uses `ctx.session`.
+   */
   async invoke(session?: TSession): Promise<Response> {
     const resolvedSession = (session ?? this.ctx.session) as TSession;
     this.session = resolvedSession;
@@ -126,11 +174,13 @@ export abstract class BaseController<
     return (await this.init()).respond();
   }
 
+  /** Sets a response error and returns its serialized response. */
   protected failWith(error: ResponseError): Response {
     this.responseError = error;
     return error.toResponse();
   }
 
+  /** Executes `run()` unless initialization produced an early error response. */
   private async respond(): Promise<Response> {
     if (this.responseError) return this.responseError.toResponse();
     const resp = await this.run();
@@ -140,6 +190,7 @@ export abstract class BaseController<
     return resp;
   }
 
+  /** Controller initialization pipeline executed before `run()`. */
   private async init(): Promise<this> {
     await this._validateUUIDs();
     await this._checkAuthStatus();
@@ -149,6 +200,7 @@ export abstract class BaseController<
     return this;
   }
 
+  /** Runs caller-provided post-schema validation and merges field errors. */
   private async _additionalValidation(): Promise<this> {
     if (this.json === undefined) return this;
 
@@ -168,6 +220,7 @@ export abstract class BaseController<
     return this;
   }
 
+  /** Parses + validates JSON body using `inputSchema` when configured. */
   private async _validateJSONInput(): Promise<this> {
     if (!this.inputSchema || this.responseError) return this;
 
@@ -200,6 +253,7 @@ export abstract class BaseController<
     return this;
   }
 
+  /** Parses + validates query params using `querySchema` when configured. */
   private async _validateQueryInput(): Promise<this> {
     if (this.responseError) return this;
 
@@ -226,6 +280,7 @@ export abstract class BaseController<
     return this;
   }
 
+  /** Converts `URLSearchParams` into the public `RawQuery` shape. */
   private static toRawQuery(searchParams: URLSearchParams): RawQuery {
     const query: RawQuery = {};
 
@@ -248,6 +303,7 @@ export abstract class BaseController<
     return query;
   }
 
+  /** Enforces authentication for controllers requiring a session. */
   private async _checkAuthStatus(): Promise<this> {
     if (this.responseError) return this;
 
@@ -261,6 +317,7 @@ export abstract class BaseController<
     return this;
   }
 
+  /** Validates configured UUID route params and stores typed `params`. */
   private async _validateUUIDs(): Promise<this> {
     if (!this.validateUUIDs) {
       this.params = {} as ValidatedUUIDs<TUUIDKey>;
@@ -300,8 +357,13 @@ export abstract class BaseController<
     return this;
   }
 
+  /**
+   * Subclass hook that must return a response for successful requests.
+   * Implemented by the class generated by `createController`.
+   */
   abstract run(): Promise<Response>;
 
+  /** Optional subclass hook for additional semantic validation. */
   protected additionalValidation(
     validated: Readonly<TData>,
   ): Promise<FieldError[]> | FieldError[] {
@@ -315,13 +377,52 @@ type ControllerConfig<
   TUUIDKeys extends string[] | undefined = string[] | undefined,
   TQuery = undefined,
 > = {
+  /** Standard Schema V1 schema used to validate and type `controller.json`. */
   validationSchema?: StandardSchemaV1<any, TData>;
+  /** Standard Schema V1 schema used to validate and type `controller.query`. */
   querySchema?: StandardSchemaV1<any, TQuery>;
+  /** Route param keys that should be validated as UUIDs before handler runs. */
   validateUUIDs?: TUUIDKeys;
+  /** Whether a session is required. Missing session yields `401 Unauthorized`. */
   requiresAuthentication: TAuth;
+  /** Optional UUID version used when validating configured UUID params. */
   uuidVersion?: UUIDVersion;
 };
 
+/**
+ * Factory for route controller classes with strongly-typed request data.
+ * Supports body/query schema validation, UUID param checks, and auth flags.
+ *
+ * @param handler Async function that receives a typed controller instance and returns a `Response`.
+ * @param config Validation/auth config for the controller.
+ * @param additionalValidator Optional post-schema validation hook for cross-field checks.
+ *
+ * @example
+ * ```ts
+ * import { createController } from "@literallyjoel/router";
+ * import { z } from "zod";
+ *
+ * const Body = z.object({ name: z.string().min(1) });
+ * const Query = z.object({ page: z.coerce.number().int().min(1).default(1) });
+ *
+ * export default createController(
+ *   async (ctrl) => {
+ *     return Response.json({
+ *       name: ctrl.json.name,  // typed from Body
+ *       page: ctrl.query.page, // typed from Query
+ *     });
+ *   },
+ *   {
+ *     requiresAuthentication: false,
+ *     validationSchema: Body,
+ *     querySchema: Query,
+ *   },
+ *   (validated) => (validated.name === "admin"
+ *     ? [{ field: "name", message: "Reserved name" }]
+ *     : []),
+ * );
+ * ```
+ */
 export function createController<
   TAuth extends boolean,
   TData = unknown,
@@ -359,10 +460,12 @@ export function createController<
       });
     }
 
+    /** Delegates request handling to the provided controller function. */
     async run(): Promise<Response> {
       return handler(this);
     }
 
+    /** Forwards validated data to the optional additional validator hook. */
     protected override async additionalValidation(
       validated: Readonly<TData>,
     ): Promise<FieldError[]> {

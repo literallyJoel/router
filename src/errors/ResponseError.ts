@@ -1,5 +1,7 @@
+/** Field-level validation issue in a normalized shape. */
 export type FieldError = { field: string; message: string };
 
+/** Options used to construct a `ResponseError`. */
 export type ResponseErrorConfig = {
   message: string;
   responseCode: number;
@@ -8,6 +10,19 @@ export type ResponseErrorConfig = {
   internalError?: Error;
 };
 
+/**
+ * Base application error that can be serialized to a JSON HTTP response.
+ * Subclasses are expected to provide sensible defaults for status/message.
+ *
+ * @example
+ * ```ts
+ * throw new ResponseError({
+ *   message: "Upstream timeout",
+ *   responseCode: 504,
+ *   internalError: new Error("gateway timeout"),
+ * });
+ * ```
+ */
 export class ResponseError extends Error {
   responseCode: number;
   data?: object;
@@ -30,6 +45,13 @@ export class ResponseError extends Error {
     this.internalError = internalError;
   }
 
+  /**
+   * Converts this error into a `Response` with a normalized JSON body.
+   * Output shape:
+   * - `{ message }`
+   * - `{ message, data }` when `data` is present
+   * - `{ message, fields }` when `fieldErrors` are present
+   */
   toResponse(): Response {
     const body: Record<string, unknown> = { message: this.message };
     if (this.data) body.data = this.data;

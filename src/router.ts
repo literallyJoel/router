@@ -18,11 +18,32 @@ const methods = [
 const methodSet = new Set(methods);
 type Method = (typeof methods)[number];
 
+/**
+ * Configuration for filesystem route discovery and route wiring.
+ *
+ * @example
+ * ```ts
+ * const routes = await getRoutes({
+ *   routesDirectory: "./src/routes",
+ *   routePrefix: "/api",
+ *   sessionGetter: async (headers) => {
+ *     const token = headers.get("authorization");
+ *     return token ? { user: { id: "u_123" } } : undefined;
+ *   },
+ *   logger: { error: (message, meta) => console.error(message, meta) },
+ * });
+ * ```
+ */
 export interface RoutesConfig {
+  /** Root directory containing route controller files. */
   routesDirectory: string;
+  /** Optional URL prefix prepended to all discovered route paths. */
   routePrefix?: string;
+  /** Optional UUID version used by controllers that validate UUID params. */
   uuidVersion?: UUIDVersion;
+  /** Optional session resolver used to populate controller context. */
   sessionGetter?: SessionGetter;
+  /** Optional logger for internal errors thrown while handling requests. */
   logger?: {
     error: (message: string, meta?: unknown) => void;
   };
@@ -46,6 +67,28 @@ type BunRoutesMap = Record<
     >
 >;
 
+/**
+ * Discovers filesystem controllers and returns a Bun `routes` map.
+ * The resulting handlers instantiate controller classes per request.
+ *
+ * @param config Discovery and runtime handler options.
+ * @returns A Bun-compatible route map ready for `serve({ routes: ... })`.
+ *
+ * @example
+ * ```ts
+ * import { serve } from "bun";
+ * import { getRoutes } from "@literallyjoel/router";
+ *
+ * const routes = await getRoutes({ routesDirectory: "./src/routes" });
+ *
+ * serve({
+ *   routes: {
+ *     ...routes,
+ *     "/*": new Response("Not Found", { status: 404 }),
+ *   },
+ * });
+ * ```
+ */
 export async function getRoutes(config: RoutesConfig): Promise<BunRoutesMap> {
   const {
     routesDirectory,
@@ -61,6 +104,7 @@ export async function getRoutes(config: RoutesConfig): Promise<BunRoutesMap> {
   return await parseRoutes(discovered, sessionGetter, logger, uuidVersion);
 }
 
+/** Dynamically imports controllers and builds request handlers per method/path. */
 async function parseRoutes(
   discovered: Discovered[],
   sessionGetter?: SessionGetter,
@@ -147,6 +191,7 @@ async function parseRoutes(
   return routes as unknown as BunRoutesMap;
 }
 
+/** Scans the routes directory and returns method/path/controller metadata. */
 async function readRoutes(
   dir: string,
   routePrefix: string,
