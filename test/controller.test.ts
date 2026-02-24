@@ -15,6 +15,14 @@ function createMockRequest(
   };
 }
 
+function createGetRequest(url: string) {
+  return new Request(url, {
+    method: "GET",
+  }) as import("bun").BunRequest & {
+    params?: Record<string, string | undefined>;
+  };
+}
+
 function createMockSchema<T>(
   validate: (input: unknown) =>
     | { value: T; issues?: undefined }
@@ -268,5 +276,78 @@ describe("createController", () => {
       field: "value",
       message: "Must be positive",
     });
+  });
+
+  test("exposes query params on controller.query", async () => {
+    const Controller = createController(
+      async (c) => {
+        expect(c.query.page).toBe("1");
+        expect(c.query.tag).toEqual(["bun", "router"]);
+        expect(c.searchParams.get("page")).toBe("1");
+        expect(c.searchParams.getAll("tag")).toEqual(["bun", "router"]);
+        return Response.json({ query: c.query });
+      },
+      { requiresAuthentication: false },
+    );
+
+    const req = createGetRequest("http://localhost/test?page=1&tag=bun&tag=router");
+
+    const instance = new Controller(req, { session: undefined });
+    const res = await instance.invoke();
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({
+      query: { page: "1", tag: ["bun", "router"] },
+    });
+  });
+
+  test("validates query params with querySchema", async () => {
+    const querySchema = createMockSchema<{ page: number; q: string }>((input) => {
+      const query = input as Record<string, string | string[] | undefined>;
+      const pageRaw = query.page;
+      const qRaw = query.q;
+      const page =
+        typeof pageRaw === "string" ? Number.parseInt(pageRaw, 10) : NaN;
+
+      if (!Number.isInteger(page) || page < 1 || typeof qRaw !== "string") {
+        return {
+          issues: [
+            { message: "page must be a positive integer", path: ["page"] },
+          ],
+        };
+      }
+
+      return { value: { page, q: qRaw } };
+    });
+
+    const Controller = createController(
+      async (c) => Response.json({ page: c.query.page, q: c.query.q }),
+      { requiresAuthentication: false, querySchema },
+    );
+
+    const req = createGetRequest("http://localhost/test?page=2&q=search");
+
+    const instance = new Controller(req, { session: undefined });
+    const res = await instance.invoke();
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ page: 2, q: "search" });
+  });
+
+  test("returns 400 when querySchema validation fails", async () => {
+    const querySchema = createMockSchema<{ page: number }>((_input) => ({
+      issues: [{ message: "Invalid page", path: ["page"] }],
+    }));
+
+    const Controller = createController(
+      async () => Response.json({ ok: true }),
+      { requiresAuthentication: false, querySchema },
+    );
+
+    const req = createGetRequest("http://localhost/test?page=NaN");
+
+    const instance = new Controller(req, { session: undefined });
+    const res = await instance.invoke();
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { fields?: unknown };
+    expect(body.fields).toEqual([{ field: "page", message: "Invalid page" }]);
   });
 });

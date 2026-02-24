@@ -85,6 +85,7 @@ src/
 Create controllers with `createController(handler, config, additionalValidator?)`.
 
 - `validationSchema`: any Standard Schema V1-compliant schema (Zod, Valibot, ArkType, Yup, Joi, …)
+- `querySchema`: optional Standard Schema V1 schema for query params
 - `requiresAuthentication`: boolean
 - `validateUUIDs`: string[] of param keys to validate as UUID
 
@@ -109,6 +110,34 @@ export default createController(
     requiresAuthentication: false,
   },
   () => [],
+);
+```
+
+Query params:
+
+```ts
+import { createController } from "@literallyjoel/router";
+import { z } from "zod";
+
+const Query = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  tag: z.array(z.string()).optional(),
+});
+
+export default createController(
+  async (ctrl) => {
+    // Typed from querySchema:
+    const page = ctrl.query.page;
+
+    // Raw URL API is also available:
+    const rawSearch = ctrl.searchParams.get("search");
+
+    return Response.json({ page, rawSearch });
+  },
+  {
+    requiresAuthentication: false,
+    querySchema: Query,
+  },
 );
 ```
 
@@ -221,6 +250,7 @@ throw new NotFoundError({ message: "User not found" });
 
 - `createController(handler, config, additionalValidator?)`
   - `validationSchema?`: StandardSchemaV1<any, TData>
+  - `querySchema?`: StandardSchemaV1<any, TQuery>
   - `validateUUIDs?`: string[]
   - `requiresAuthentication`: boolean
 
@@ -228,6 +258,8 @@ throw new NotFoundError({ message: "User not found" });
   - `request`: BunRequest
   - `ctx`: HandlerContext
   - `json`: TData (validated)
+  - `query`: raw query object (`Record<string, string | string[] | undefined>`) or validated `TQuery` when `querySchema` is configured
+  - `searchParams`: URLSearchParams
   - `params`: Record<string, string> (validated UUIDs if configured)
   - `session`, `user`
 
