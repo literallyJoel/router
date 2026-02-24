@@ -15,6 +15,14 @@ function createMockRequest(
   };
 }
 
+function createGetRequest(url: string) {
+  return new Request(url, {
+    method: "GET",
+  }) as import("bun").BunRequest & {
+    params?: Record<string, string | undefined>;
+  };
+}
+
 function createMockSchema<T>(
   validate: (input: unknown) =>
     | { value: T; issues?: undefined }
@@ -282,11 +290,7 @@ describe("createController", () => {
       { requiresAuthentication: false },
     );
 
-    const req = new Request("http://localhost/test?page=1&tag=bun&tag=router", {
-      method: "GET",
-    }) as import("bun").BunRequest & {
-      params?: Record<string, string | undefined>;
-    };
+    const req = createGetRequest("http://localhost/test?page=1&tag=bun&tag=router");
 
     const instance = new Controller(req, { session: undefined });
     const res = await instance.invoke();
@@ -320,11 +324,7 @@ describe("createController", () => {
       { requiresAuthentication: false, querySchema },
     );
 
-    const req = new Request("http://localhost/test?page=2&q=search", {
-      method: "GET",
-    }) as import("bun").BunRequest & {
-      params?: Record<string, string | undefined>;
-    };
+    const req = createGetRequest("http://localhost/test?page=2&q=search");
 
     const instance = new Controller(req, { session: undefined });
     const res = await instance.invoke();
@@ -342,11 +342,7 @@ describe("createController", () => {
       { requiresAuthentication: false, querySchema },
     );
 
-    const req = new Request("http://localhost/test?page=NaN", {
-      method: "GET",
-    }) as import("bun").BunRequest & {
-      params?: Record<string, string | undefined>;
-    };
+    const req = createGetRequest("http://localhost/test?page=NaN");
 
     const instance = new Controller(req, { session: undefined });
     const res = await instance.invoke();

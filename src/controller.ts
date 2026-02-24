@@ -43,8 +43,8 @@ type ValidatedUUIDs<T extends readonly string[] | undefined> =
       }
     : Record<string, string | undefined>;
 
-type RawQueryValue = string | string[] | undefined;
-type RawQuery = Record<string, RawQueryValue>;
+export type RawQueryValue = string | string[] | undefined;
+export type RawQuery = Record<string, RawQueryValue>;
 
 export abstract class BaseController<
   TAuth extends boolean = boolean,
@@ -141,9 +141,9 @@ export abstract class BaseController<
   }
 
   private async init(): Promise<this> {
-    await this._validateQueryInput();
     await this._validateUUIDs();
     await this._checkAuthStatus();
+    await this._validateQueryInput();
     await this._validateJSONInput();
     await this._additionalValidation();
     return this;
@@ -203,7 +203,7 @@ export abstract class BaseController<
   private async _validateQueryInput(): Promise<this> {
     if (this.responseError) return this;
 
-    const queryUnsafe = toRawQuery(this.searchParams);
+    const queryUnsafe = this.toRawQuery(this.searchParams);
 
     if (!this.querySchema) {
       this.query = queryUnsafe as TQuery extends undefined ? RawQuery : TQuery;
@@ -226,7 +226,31 @@ export abstract class BaseController<
     return this;
   }
 
+  private toRawQuery(searchParams: URLSearchParams): RawQuery {
+    const query: RawQuery = {};
+
+    for (const [key, value] of searchParams) {
+      const existing = query[key];
+
+      if (existing === undefined) {
+        query[key] = value;
+        continue;
+      }
+
+      if (Array.isArray(existing)) {
+        existing.push(value);
+        continue;
+      }
+
+      query[key] = [existing, value];
+    }
+
+    return query;
+  }
+
   private async _checkAuthStatus(): Promise<this> {
+    if (this.responseError) return this;
+
     if (this.requiresAuthentication && !this.session) {
       this.responseError = new UnauthorizedError({
         message: "You must be logged in to view this content",
@@ -346,26 +370,4 @@ export function createController<
       return result !== undefined ? await result : [];
     }
   };
-}
-
-function toRawQuery(searchParams: URLSearchParams): RawQuery {
-  const query: RawQuery = {};
-
-  for (const [key, value] of searchParams) {
-    const existing = query[key];
-
-    if (existing === undefined) {
-      query[key] = value;
-      continue;
-    }
-
-    if (Array.isArray(existing)) {
-      existing.push(value);
-      continue;
-    }
-
-    query[key] = [existing, value];
-  }
-
-  return query;
 }
