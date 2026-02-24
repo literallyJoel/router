@@ -203,7 +203,7 @@ export abstract class BaseController<
   private async _validateQueryInput(): Promise<this> {
     if (this.responseError) return this;
 
-    const queryUnsafe = this.toRawQuery(this.searchParams);
+    const queryUnsafe = BaseController.toRawQuery(this.searchParams);
 
     if (!this.querySchema) {
       this.query = queryUnsafe as TQuery extends undefined ? RawQuery : TQuery;
@@ -226,7 +226,7 @@ export abstract class BaseController<
     return this;
   }
 
-  private toRawQuery(searchParams: URLSearchParams): RawQuery {
+  private static toRawQuery(searchParams: URLSearchParams): RawQuery {
     const query: RawQuery = {};
 
     for (const [key, value] of searchParams) {
