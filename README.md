@@ -31,7 +31,7 @@ import { getRoutes } from "@literallyjoel/router";
 const routes = await getRoutes({
   routesDirectory: "./src/routes",
   routePrefix: "/api", // optional; you can also include 'api' in your directory structure
-  sessionGetter: async (headers) => {
+  sessionGetter: async (headers, request) => {
     const token = headers.get("authorization");
     return token ? { user: { id: "123" } } : null;
   },
@@ -200,7 +200,7 @@ Notes:
 Provide a `sessionGetter` in `getRoutes()` to enable sessions for all routes:
 
 ```ts
-sessionGetter: async (headers) => {
+sessionGetter: async (headers, request) => {
   const token = headers.get("authorization");
   return token ? { user: { id: "123" } } : null;
 };
@@ -245,7 +245,7 @@ throw new NotFoundError({ message: "User not found" });
 - `getRoutes(options)`
   - `routesDirectory`: string
   - `routePrefix?`: string (prefix all discovered routes, e.g., `/api`)
-  - `sessionGetter?`: `(headers: Headers) => Promise<any | null> | any | null`
+  - `sessionGetter?`: `(headers: Headers, request: BunRequest) => Promise<any | null> | any | null`
   - `logger?`: { `error(message, meta?)` }
 
 - `createController(handler, config, additionalValidator?)`

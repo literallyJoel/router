@@ -146,7 +146,9 @@ async function parseRoutes(
       try {
         const bunReq = request as BunRequest;
         const session = sessionGetter
-          ? await sessionGetter(bunReq.headers)
+          // You could just grab the headers from the bun request, but we
+          // pass them through as the first arg anyway for backwards compatibility.
+          ? await sessionGetter(bunReq.headers, bunReq)
           : undefined;
 
         const context: HandlerContext<boolean> = { session };

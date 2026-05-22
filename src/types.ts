@@ -41,6 +41,6 @@ export type RouteHandler<TAuth extends boolean = boolean> = (
  * };
  * ```
  */
-export type SessionGetter = (headers: Headers) => TSession | Promise<TSession>;
+export type SessionGetter = (headers: Headers, request: BunRequest) => TSession | Promise<TSession>;
 
 export type { StandardSchemaV1 };
