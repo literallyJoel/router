@@ -1,6 +1,6 @@
 {
   "name": "@literallyjoel/router",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Bun router/controllers with Standard Schema validation",
   "type": "module",
   "main": "./dist/index.js",

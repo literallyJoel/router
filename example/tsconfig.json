@@ -4,6 +4,10 @@
     "target": "ESNext",
     "module": "Preserve",
     "moduleResolution": "bundler",
+    "baseUrl": ".",
+    "paths": {
+      "@literallyjoel/router": ["../src/index.ts"]
+    },
     "strict": true,
     "types": ["bun-types"],
     "skipLibCheck": true

@@ -462,7 +462,7 @@ export function createController<
 ): {
   new (
     request: BunRequest,
-    ctx: HandlerContext<TAuth, TResolvedSession>,
+    ctx: HandlerContext<boolean, TResolvedSession>,
     uuidVersion?: UUIDVersion,
   ): BaseController<TAuth, TData, TUUIDKeys, TQuery, TResolvedSession>;
 } {
@@ -475,12 +475,12 @@ export function createController<
   > {
     constructor(
       request: BunRequest,
-      ctx: HandlerContext<TAuth, TResolvedSession>,
+      ctx: HandlerContext<boolean, TResolvedSession>,
       uuidVersion?: UUIDVersion,
     ) {
       super({
         request,
-        ctx,
+        ctx: ctx as HandlerContext<TAuth, TResolvedSession>,
         requiresAuthentication: config.requiresAuthentication,
         inputSchema: config.validationSchema,
         querySchema: config.querySchema,
@@ -521,7 +521,7 @@ export type ControllerFactory<TResolvedSession = TSession> = <
 ) => {
   new (
     request: BunRequest,
-    ctx: HandlerContext<TAuth, TResolvedSession>,
+    ctx: HandlerContext<boolean, TResolvedSession>,
     uuidVersion?: UUIDVersion,
   ): BaseController<TAuth, TData, TUUIDKeys, TQuery, TResolvedSession>;
 };

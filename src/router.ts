@@ -6,7 +6,6 @@ import { InternalServerError } from "./errors/GenericErrors";
 import { createControllerForSession } from "./controller";
 import type {
   HandlerContext,
-  InferSession,
   SessionGetter,
   TSession,
 } from "./types";
@@ -205,11 +204,22 @@ async function parseRoutes<TResolvedSession = TSession>(
 }
 
 
-type CreateRouterConfig<TGetter extends SessionGetter | undefined> = Omit<
-  RoutesConfig<InferSession<TGetter>>,
+type RouterInstance<TResolvedSession> = {
+  getRoutes: (
+    overrides?: Partial<RoutesConfig<TResolvedSession>>,
+  ) => Promise<BunRoutesMap>;
+  createController: ReturnType<typeof createControllerForSession<TResolvedSession>>;
+};
+
+type CreateRouterConfigWithoutSession = Omit<RoutesConfig<undefined>, "sessionGetter"> & {
+  sessionGetter?: undefined;
+};
+
+type CreateRouterConfigWithSession<TResolvedSession> = Omit<
+  RoutesConfig<TResolvedSession>,
   "sessionGetter"
 > & {
-  sessionGetter?: TGetter;
+  sessionGetter: SessionGetter<TResolvedSession>;
 };
 
 /**
@@ -218,11 +228,17 @@ type CreateRouterConfig<TGetter extends SessionGetter | undefined> = Omit<
  * The returned `createController` infers its session type from `sessionGetter`,
  * so route files can import it from your local router module.
  */
-export function createRouter<TGetter extends SessionGetter | undefined = undefined>(
-  config: CreateRouterConfig<TGetter>,
-) {
-  type TResolvedSession = InferSession<TGetter>;
-
+export function createRouter(
+  config: CreateRouterConfigWithoutSession,
+): RouterInstance<undefined>;
+export function createRouter<TResolvedSession>(
+  config: CreateRouterConfigWithSession<TResolvedSession>,
+): RouterInstance<TResolvedSession>;
+export function createRouter<TResolvedSession = undefined>(
+  config:
+    | CreateRouterConfigWithoutSession
+    | CreateRouterConfigWithSession<TResolvedSession>,
+): RouterInstance<TResolvedSession> {
   return {
     getRoutes: (overrides?: Partial<RoutesConfig<TResolvedSession>>) =>
       getRoutes<TResolvedSession>({
@@ -230,7 +246,9 @@ export function createRouter<TGetter extends SessionGetter | undefined = undefin
         ...overrides,
         sessionGetter:
           overrides?.sessionGetter ??
-          (config.sessionGetter as SessionGetter<TResolvedSession> | undefined),
+          (config.sessionGetter as
+            | SessionGetter<TResolvedSession>
+            | undefined),
       }),
     createController: createControllerForSession<TResolvedSession>(),
   };

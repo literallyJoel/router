@@ -23,8 +23,11 @@ function createGetRequest(url: string) {
   };
 }
 
-const { createController } = createRouter({
+type TestSession = { user: { id: number } } | undefined;
+
+const { createController } = createRouter<TestSession>({
   routesDirectory: "./test/fixtures/routes",
+  sessionGetter: async (): Promise<TestSession> => undefined,
 });
 
 function createMockSchema<T>(
@@ -294,7 +297,9 @@ describe("createController", () => {
       { requiresAuthentication: false },
     );
 
-    const req = createGetRequest("http://localhost/test?page=1&tag=bun&tag=router");
+    const req = createGetRequest(
+      "http://localhost/test?page=1&tag=bun&tag=router",
+    );
 
     const instance = new Controller(req, { session: undefined });
     const res = await instance.invoke();
@@ -305,23 +310,25 @@ describe("createController", () => {
   });
 
   test("validates query params with querySchema", async () => {
-    const querySchema = createMockSchema<{ page: number; q: string }>((input) => {
-      const query = input as Record<string, string | string[] | undefined>;
-      const pageRaw = query.page;
-      const qRaw = query.q;
-      const page =
-        typeof pageRaw === "string" ? Number.parseInt(pageRaw, 10) : NaN;
+    const querySchema = createMockSchema<{ page: number; q: string }>(
+      (input) => {
+        const query = input as Record<string, string | string[] | undefined>;
+        const pageRaw = query.page;
+        const qRaw = query.q;
+        const page =
+          typeof pageRaw === "string" ? Number.parseInt(pageRaw, 10) : NaN;
 
-      if (!Number.isInteger(page) || page < 1 || typeof qRaw !== "string") {
-        return {
-          issues: [
-            { message: "page must be a positive integer", path: ["page"] },
-          ],
-        };
-      }
+        if (!Number.isInteger(page) || page < 1 || typeof qRaw !== "string") {
+          return {
+            issues: [
+              { message: "page must be a positive integer", path: ["page"] },
+            ],
+          };
+        }
 
-      return { value: { page, q: qRaw } };
-    });
+        return { value: { page, q: qRaw } };
+      },
+    );
 
     const Controller = createController(
       async (c) => Response.json({ page: c.query.page, q: c.query.q }),

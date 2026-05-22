@@ -1,7 +1,9 @@
+import { createRouter } from "@literallyjoel/router";
+
 export const { getRoutes, createController } = createRouter({
   routesDirectory: "./src/routes",
   routePrefix: "/api",
-  sessionGetter: async (headers,) => {
+  sessionGetter: async (headers, request) => {
     const token = headers.get("authorization");
 
     return token

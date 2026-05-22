@@ -8,8 +8,11 @@ import { createController as directCreateController } from "../src/index";
 
 const { createController } = createRouter({
   routesDirectory: "./test/fixtures/routes",
-  sessionGetter: async (headers: Headers) => {
-    const token = headers.get("authorization");
+  sessionGetter: async (headers, request) => {
+    const typedHeaders: Headers = headers;
+    const requestUrl: string = request.url;
+    const token = typedHeaders.get("authorization");
+    void requestUrl;
     return token
       ? { user: { id: "user_1", role: "admin" as const }, orgId: "org_1" }
       : null;

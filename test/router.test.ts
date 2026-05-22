@@ -31,6 +31,7 @@ describe("createRouter getRoutes", () => {
     expect(routes["/"]).toBeDefined();
     expect(routes["/users"]).toBeDefined();
     expect(routes["/users/[id]"]).toBeDefined();
+    expect(routes["/session"]).toBeDefined();
   });
 
   test("GET / returns 200 with correct body", async () => {
@@ -81,6 +82,89 @@ describe("createRouter getRoutes", () => {
     const req = new Request("http://localhost/");
     await handler(req, {} as any);
     expect(sessionGetterCalled).toBe(true);
+  });
+
+  test("passes request headers and request object to sessionGetter", async () => {
+    const observed: { auth: string | null; url?: string } = { auth: null };
+
+    const { getRoutes } = createRouter({
+      routesDirectory: fixturesDir,
+      sessionGetter: async (headers, request) => {
+        observed.auth = headers.get("authorization");
+        observed.url = request.url;
+        return { user: { id: "user_123", role: "admin" as const } };
+      },
+    });
+
+    const routes = await getRoutes();
+    const handler = getHandler(routes["/"]);
+    if (typeof handler !== "function") {
+      throw new Error("Expected function handler");
+    }
+
+    await handler(
+      new Request("http://localhost/?from=test", {
+        headers: { authorization: "Bearer test-token" },
+      }),
+      {} as any,
+    );
+
+    expect(observed.auth).toBe("Bearer test-token");
+    expect(observed.url).toBe("http://localhost/?from=test");
+  });
+
+  test("passes resolved session into authenticated controllers", async () => {
+    const { getRoutes } = createRouter({
+      routesDirectory: fixturesDir,
+      sessionGetter: async (headers) => {
+        const token = headers.get("authorization");
+        return token
+          ? { user: { id: "user_123", role: "admin" as const } }
+          : null;
+      },
+    });
+
+    const routes = await getRoutes();
+    const handler = getHandler(routes["/session"]);
+    if (typeof handler !== "function") {
+      throw new Error("Expected function handler");
+    }
+
+    const res = await handler(
+      new Request("http://localhost/session", {
+        headers: { authorization: "Bearer test-token" },
+      }),
+      {} as any,
+    );
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({
+      userId: "user_123",
+      ctxUserId: "user_123",
+      role: "admin",
+    });
+  });
+
+  test("returns 401 for authenticated controllers when sessionGetter returns null", async () => {
+    const { getRoutes } = createRouter({
+      routesDirectory: fixturesDir,
+      sessionGetter: async () => null,
+    });
+
+    const routes = await getRoutes();
+    const handler = getHandler(routes["/session"]);
+    if (typeof handler !== "function") {
+      throw new Error("Expected function handler");
+    }
+
+    const res = await handler(
+      new Request("http://localhost/session"),
+      {} as any,
+    );
+
+    expect(res.status).toBe(401);
+    const body = (await res.json()) as { message?: string };
+    expect(body.message).toContain("logged in");
   });
 
   test("applies routePrefix", async () => {
