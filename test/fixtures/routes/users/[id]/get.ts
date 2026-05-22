@@ -1,4 +1,4 @@
-import { createController } from "../../../../../src/controller";
+import { createController } from "../../../router";
 
 export default createController(
   async (c) => Response.json({ id: c.params.id }),

@@ -3,7 +3,13 @@ import path from "path";
 import { Glob } from "bun";
 import { ResponseError } from "./errors/ResponseError";
 import { InternalServerError } from "./errors/GenericErrors";
-import type { HandlerContext, SessionGetter, TSession } from "./types";
+import { createControllerForSession } from "./controller";
+import type {
+  HandlerContext,
+  InferSession,
+  SessionGetter,
+  TSession,
+} from "./types";
 import type { UUIDVersion } from "./validation";
 
 const methods = [
@@ -23,7 +29,7 @@ type Method = (typeof methods)[number];
  *
  * @example
  * ```ts
- * const routes = await getRoutes({
+ * const { getRoutes } = createRouter({
  *   routesDirectory: "./src/routes",
  *   routePrefix: "/api",
  *   sessionGetter: async (headers) => {
@@ -32,9 +38,11 @@ type Method = (typeof methods)[number];
  *   },
  *   logger: { error: (message, meta) => console.error(message, meta) },
  * });
+ *
+ * const routes = await getRoutes();
  * ```
  */
-export interface RoutesConfig {
+export interface RoutesConfig<TResolvedSession = TSession> {
   /** Root directory containing route controller files. */
   routesDirectory: string;
   /** Optional URL prefix prepended to all discovered route paths. */
@@ -42,7 +50,7 @@ export interface RoutesConfig {
   /** Optional UUID version used by controllers that validate UUID params. */
   uuidVersion?: UUIDVersion;
   /** Optional session resolver used to populate controller context. */
-  sessionGetter?: SessionGetter;
+  sessionGetter?: SessionGetter<TResolvedSession>;
   /** Optional logger for internal errors thrown while handling requests. */
   logger?: {
     error: (message: string, meta?: unknown) => void;
@@ -77,9 +85,10 @@ type BunRoutesMap = Record<
  * @example
  * ```ts
  * import { serve } from "bun";
- * import { getRoutes } from "@literallyjoel/router";
+ * import { createRouter } from "@literallyjoel/router";
  *
- * const routes = await getRoutes({ routesDirectory: "./src/routes" });
+ * const { getRoutes } = createRouter({ routesDirectory: "./src/routes" });
+ * const routes = await getRoutes();
  *
  * serve({
  *   routes: {
@@ -89,7 +98,9 @@ type BunRoutesMap = Record<
  * });
  * ```
  */
-export async function getRoutes(config: RoutesConfig): Promise<BunRoutesMap> {
+async function getRoutes<TResolvedSession = TSession>(
+  config: RoutesConfig<TResolvedSession>,
+): Promise<BunRoutesMap> {
   const {
     routesDirectory,
     routePrefix = "",
@@ -105,10 +116,10 @@ export async function getRoutes(config: RoutesConfig): Promise<BunRoutesMap> {
 }
 
 /** Dynamically imports controllers and builds request handlers per method/path. */
-async function parseRoutes(
+async function parseRoutes<TResolvedSession = TSession>(
   discovered: Discovered[],
-  sessionGetter?: SessionGetter,
-  logger?: RoutesConfig["logger"],
+  sessionGetter?: SessionGetter<TResolvedSession>,
+  logger?: RoutesConfig<TResolvedSession>["logger"],
   uuidVersion?: UUIDVersion,
 ): Promise<BunRoutesMap> {
   const routes: Record<string, Record<string, Function>> = {};
@@ -123,10 +134,10 @@ async function parseRoutes(
       default: {
         new (
           req: BunRequest,
-          ctx: HandlerContext<boolean>,
+          ctx: HandlerContext<boolean, TResolvedSession>,
           uuidVersion?: UUIDVersion,
         ): {
-          invoke(session?: TSession): Promise<Response>;
+          invoke(session?: TResolvedSession): Promise<Response>;
         };
       };
     };
@@ -151,7 +162,7 @@ async function parseRoutes(
           ? await sessionGetter(bunReq.headers, bunReq)
           : undefined;
 
-        const context: HandlerContext<boolean> = { session };
+        const context: HandlerContext<boolean, TResolvedSession> = { session };
 
         const instance = new Ctor(bunReq, context, uuidVersion);
         return await instance.invoke(session);
@@ -191,6 +202,38 @@ async function parseRoutes(
   }
 
   return routes as unknown as BunRoutesMap;
+}
+
+
+type CreateRouterConfig<TGetter extends SessionGetter | undefined> = Omit<
+  RoutesConfig<InferSession<TGetter>>,
+  "sessionGetter"
+> & {
+  sessionGetter?: TGetter;
+};
+
+/**
+ * Binds router configuration and controller typing together.
+ *
+ * The returned `createController` infers its session type from `sessionGetter`,
+ * so route files can import it from your local router module.
+ */
+export function createRouter<TGetter extends SessionGetter | undefined = undefined>(
+  config: CreateRouterConfig<TGetter>,
+) {
+  type TResolvedSession = InferSession<TGetter>;
+
+  return {
+    getRoutes: (overrides?: Partial<RoutesConfig<TResolvedSession>>) =>
+      getRoutes<TResolvedSession>({
+        ...config,
+        ...overrides,
+        sessionGetter:
+          overrides?.sessionGetter ??
+          (config.sessionGetter as SessionGetter<TResolvedSession> | undefined),
+      }),
+    createController: createControllerForSession<TResolvedSession>(),
+  };
 }
 
 /** Scans the routes directory and returns method/path/controller metadata. */

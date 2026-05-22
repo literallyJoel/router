@@ -26,19 +26,21 @@ Install any Standard Schema-compatible validator you prefer (Zod, Valibot, ArkTy
 ```ts
 import { serve } from "bun";
 import index from "@app/index.html";
-import { getRoutes } from "@literallyjoel/router";
+import { createRouter } from "@literallyjoel/router";
 
-const routes = await getRoutes({
+export const { getRoutes, createController } = createRouter({
   routesDirectory: "./src/routes",
   routePrefix: "/api", // optional; you can also include 'api' in your directory structure
   sessionGetter: async (headers, request) => {
     const token = headers.get("authorization");
-    return token ? { user: { id: "123" } } : null;
+    return token ? { user: { id: "123", role: "admin" as const } } : null;
   },
   logger: {
     error: (message, meta) => console.error(message, meta),
   },
 });
+
+const routes = await getRoutes();
 
 const server = serve({
   routes: {
@@ -65,7 +67,7 @@ console.log(`🚀 Server running at ${server.url}`);
 
 ## File structure
 
-`getRoutes()` discovers controllers from filenames:
+`createRouter(...).getRoutes()` discovers controllers from filenames:
 
 ```
 src/
@@ -82,7 +84,7 @@ src/
 
 ## Controllers
 
-Create controllers with `createController(handler, config, additionalValidator?)`.
+Create a project-local router module, then import its bound `createController(handler, config, additionalValidator?)` in route files.
 
 - `validationSchema`: any Standard Schema V1-compliant schema (Zod, Valibot, ArkType, Yup, Joi, …)
 - `querySchema`: optional Standard Schema V1 schema for query params
@@ -93,7 +95,7 @@ Example (Zod):
 
 ```ts
 // src/routes/users/post.ts
-import { createController } from "@literallyjoel/router";
+import { createController } from "../../router";
 import { z } from "zod";
 
 const Schema = z.object({
@@ -116,7 +118,7 @@ export default createController(
 Query params:
 
 ```ts
-import { createController } from "@literallyjoel/router";
+import { createController } from "../../router";
 import { z } from "zod";
 
 const Query = z.object({
@@ -144,7 +146,7 @@ export default createController(
 Valibot:
 
 ```ts
-import { createController } from "@literallyjoel/router";
+import { createController } from "../../router";
 import * as v from "valibot";
 
 const Schema = v.object({
@@ -162,7 +164,7 @@ export default createController(
 ArkType:
 
 ```ts
-import { createController } from "@literallyjoel/router";
+import { createController } from "../../router";
 import { type } from "arktype";
 
 const Schema = type({ username: "string.min(3)", email: "string.email" });
@@ -197,16 +199,37 @@ Notes:
 
 ## Authentication
 
-Provide a `sessionGetter` in `getRoutes()` to enable sessions for all routes:
+Provide a `sessionGetter` in `createRouter()` to enable sessions for all routes and bind that session type to controllers:
 
 ```ts
-sessionGetter: async (headers, request) => {
-  const token = headers.get("authorization");
-  return token ? { user: { id: "123" } } : null;
-};
+import { createRouter } from "@literallyjoel/router";
+
+export const { getRoutes, createController } = createRouter({
+  routesDirectory: "./src/routes",
+  sessionGetter: async (headers, request) => {
+    const token = headers.get("authorization");
+    return token ? { user: { id: "123", role: "admin" as const } } : null;
+  },
+});
 ```
 
-If a controller sets `requiresAuthentication: true` and session is missing, the controller responds with 401 automatically.
+If a controller sets `requiresAuthentication: true` and session is missing, the controller responds with 401 automatically. Controllers imported from your local router module infer `ctrl.session`, `ctrl.ctx.session`, and `ctrl.user` from the `sessionGetter` return type.
+
+```ts
+// src/routes/me/get.ts
+import { createController } from "../../router";
+
+export default createController(
+  async (ctrl) => {
+    // Typed as string, and role is "admin".
+    return Response.json({
+      id: ctrl.session.user.id,
+      role: ctrl.user.role,
+    });
+  },
+  { requiresAuthentication: true },
+);
+```
 
 ## Validation (Standard Schema)
 
@@ -242,13 +265,15 @@ throw new NotFoundError({ message: "User not found" });
 
 ## API
 
-- `getRoutes(options)`
+- `createRouter(options)`
   - `routesDirectory`: string
   - `routePrefix?`: string (prefix all discovered routes, e.g., `/api`)
-  - `sessionGetter?`: `(headers: Headers, request: BunRequest) => Promise<any | null> | any | null`
+  - `sessionGetter?`: `(headers: Headers, request: BunRequest) => Promise<TSession> | TSession`
   - `logger?`: { `error(message, meta?)` }
+  - returns `{ getRoutes, createController }`, where both helpers are bound to this router config and `createController` is bound to the inferred session type
 
 - `createController(handler, config, additionalValidator?)`
+  - Returned from `createRouter(options)`; import it from your project-local router module, not from the package directly
   - `validationSchema?`: StandardSchemaV1<any, TData>
   - `querySchema?`: StandardSchemaV1<any, TQuery>
   - `validateUUIDs?`: string[]
@@ -256,7 +281,7 @@ throw new NotFoundError({ message: "User not found" });
 
 - `BaseController`
   - `request`: BunRequest
-  - `ctx`: HandlerContext
+  - `ctx`: HandlerContext with typed `session`
   - `json`: TData (validated)
   - `query`: raw query object (`Record<string, string | string[] | undefined>`) or validated `TQuery` when `querySchema` is configured
   - `searchParams`: URLSearchParams

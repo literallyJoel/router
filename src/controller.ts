@@ -18,9 +18,10 @@ type RouteControllerProps<
   TData = unknown,
   TUUIDKeys extends string[] | undefined = string[] | undefined,
   TQuery = undefined,
+  TResolvedSession = TSession,
 > = {
   request: BunRequest & { params?: Record<string, string | undefined> };
-  ctx: HandlerContext<TAuth>;
+  ctx: HandlerContext<TAuth, TResolvedSession>;
   requiresAuthentication: TAuth;
   inputSchema?: StandardSchemaV1<any, TData>;
   querySchema?: StandardSchemaV1<any, TQuery>;
@@ -28,13 +29,18 @@ type RouteControllerProps<
   uuidVersion?: UUIDVersion;
 };
 
-type Session<TAuth extends boolean> = TAuth extends true
-  ? NonNullable<any>
-  : any | undefined;
+type Session<TAuth extends boolean, TResolvedSession> = TAuth extends true
+  ? NonNullable<TResolvedSession>
+  : TResolvedSession | undefined;
 
-type User<TAuth extends boolean> = TAuth extends true
-  ? NonNullable<any>
-  : any | undefined;
+type User<TAuth extends boolean, TResolvedSession> =
+  NonNullable<Session<TAuth, TResolvedSession>> extends { user?: infer TUser }
+    ? TAuth extends true
+      ? NonNullable<TUser>
+      : TUser | undefined
+    : TAuth extends true
+      ? never
+      : undefined;
 
 type ValidatedUUIDs<T extends readonly string[] | undefined> =
   T extends readonly string[]
@@ -77,20 +83,23 @@ export abstract class BaseController<
   TData = unknown,
   TUUIDKey extends string[] | undefined = string[] | undefined,
   TQuery = undefined,
+  TResolvedSession = TSession,
 > {
   /** Original Bun request object. */
   public readonly request: RouteControllerProps<
     TAuth,
     TData,
     TUUIDKey,
-    TQuery
+    TQuery,
+    TResolvedSession
   >["request"];
   /** Runtime context passed to the controller, including session information. */
   public readonly ctx: RouteControllerProps<
     TAuth,
     TData,
     TUUIDKey,
-    TQuery
+    TQuery,
+    TResolvedSession
   >["ctx"];
   /** Whether this controller requires an authenticated session. */
   public readonly requiresAuthentication: TAuth;
@@ -99,21 +108,24 @@ export abstract class BaseController<
     TAuth,
     TData,
     TUUIDKey,
-    TQuery
+    TQuery,
+    TResolvedSession
   >["inputSchema"];
   /** Optional Standard Schema used to validate parsed query parameters. */
   public readonly querySchema?: RouteControllerProps<
     TAuth,
     TData,
     TUUIDKey,
-    TQuery
+    TQuery,
+    TResolvedSession
   >["querySchema"];
   /** Optional list of route param keys that must be valid UUIDs. */
   public readonly validateUUIDs?: RouteControllerProps<
     TAuth,
     TData,
     TUUIDKey,
-    TQuery
+    TQuery,
+    TResolvedSession
   >["validateUUIDs"];
   /** Optional UUID version constraint for validated UUID params. */
   public readonly uuidVersion?: UUIDVersion;
@@ -128,19 +140,28 @@ export abstract class BaseController<
    */
   public query!: TQuery extends undefined ? RawQuery : TQuery;
   /** Resolved session for this request. */
-  public session!: Session<TAuth>;
+  public session!: Session<TAuth, TResolvedSession>;
   /** Validated UUID params configured by `validateUUIDs`. */
   public params!: ValidatedUUIDs<TUUIDKey>;
 
   /** Convenience accessor for `session.user` with auth-aware typing. */
-  get user(): User<TAuth> {
-    return this.session?.user as User<TAuth>;
+  get user(): User<TAuth, TResolvedSession> {
+    return (this.session as { user?: unknown } | undefined)?.user as User<
+      TAuth,
+      TResolvedSession
+    >;
   }
 
   protected responseError?: ResponseError;
 
   protected constructor(
-    args: RouteControllerProps<TAuth, TData, TUUIDKey, TQuery>,
+    args: RouteControllerProps<
+      TAuth,
+      TData,
+      TUUIDKey,
+      TQuery,
+      TResolvedSession
+    >,
   ) {
     const {
       request,
@@ -167,10 +188,11 @@ export abstract class BaseController<
    *
    * @param session Optional session override. If omitted, uses `ctx.session`.
    */
-  async invoke(session?: TSession): Promise<Response> {
-    const resolvedSession = (session ?? this.ctx.session) as TSession;
-    this.session = resolvedSession;
-    this.ctx.session = resolvedSession;
+  async invoke(session?: TResolvedSession): Promise<Response> {
+    const resolvedSession = (session ?? this.ctx.session) as TResolvedSession;
+    this.session = resolvedSession as Session<TAuth, TResolvedSession>;
+    (this.ctx as HandlerContext<boolean, TResolvedSession>).session =
+      resolvedSession;
     return (await this.init()).respond();
   }
 
@@ -371,7 +393,7 @@ export abstract class BaseController<
   }
 }
 
-type ControllerConfig<
+export type ControllerConfig<
   TAuth extends boolean,
   TData,
   TUUIDKeys extends string[] | undefined = string[] | undefined,
@@ -428,9 +450,10 @@ export function createController<
   TData = unknown,
   TUUIDKeys extends string[] | undefined = undefined,
   TQuery = undefined,
+  TResolvedSession = TSession,
 >(
   handler: (
-    controller: BaseController<TAuth, TData, TUUIDKeys, TQuery>,
+    controller: BaseController<TAuth, TData, TUUIDKeys, TQuery, TResolvedSession>,
   ) => Promise<Response>,
   config: ControllerConfig<TAuth, TData, TUUIDKeys, TQuery>,
   additionalValidator?: (
@@ -439,14 +462,20 @@ export function createController<
 ): {
   new (
     request: BunRequest,
-    ctx: HandlerContext<TAuth>,
+    ctx: HandlerContext<TAuth, TResolvedSession>,
     uuidVersion?: UUIDVersion,
-  ): BaseController<TAuth, TData, TUUIDKeys, TQuery>;
+  ): BaseController<TAuth, TData, TUUIDKeys, TQuery, TResolvedSession>;
 } {
-  return class extends BaseController<TAuth, TData, TUUIDKeys, TQuery> {
+  return class extends BaseController<
+    TAuth,
+    TData,
+    TUUIDKeys,
+    TQuery,
+    TResolvedSession
+  > {
     constructor(
       request: BunRequest,
-      ctx: HandlerContext<TAuth>,
+      ctx: HandlerContext<TAuth, TResolvedSession>,
       uuidVersion?: UUIDVersion,
     ) {
       super({
@@ -473,4 +502,32 @@ export function createController<
       return result !== undefined ? await result : [];
     }
   };
+}
+
+
+export type ControllerFactory<TResolvedSession = TSession> = <
+  TAuth extends boolean,
+  TData = unknown,
+  TUUIDKeys extends string[] | undefined = undefined,
+  TQuery = undefined,
+>(
+  handler: (
+    controller: BaseController<TAuth, TData, TUUIDKeys, TQuery, TResolvedSession>,
+  ) => Promise<Response>,
+  config: ControllerConfig<TAuth, TData, TUUIDKeys, TQuery>,
+  additionalValidator?: (
+    validated: TData,
+  ) => FieldError[] | Promise<FieldError[]>,
+) => {
+  new (
+    request: BunRequest,
+    ctx: HandlerContext<TAuth, TResolvedSession>,
+    uuidVersion?: UUIDVersion,
+  ): BaseController<TAuth, TData, TUUIDKeys, TQuery, TResolvedSession>;
+};
+
+export function createControllerForSession<
+  TResolvedSession = TSession,
+>(): ControllerFactory<TResolvedSession> {
+  return createController as ControllerFactory<TResolvedSession>;
 }

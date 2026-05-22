@@ -1,0 +1,16 @@
+{
+  "name": "router-example",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun --hot src/index.ts",
+    "check": "bunx tsc --noEmit"
+  },
+  "dependencies": {
+    "@literallyjoel/router": "latest"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.6.0"
+  }
+}

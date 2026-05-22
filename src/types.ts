@@ -11,9 +11,12 @@ export type TSession = any;
  * @example
  * `HandlerContext<true>` -> `{ session: NonNullable<TSession> }`
  */
-export type HandlerContext<TAuth extends boolean = boolean> = TAuth extends true
-  ? { session: NonNullable<TSession> }
-  : { session?: TSession | undefined };
+export type HandlerContext<
+  TAuth extends boolean = boolean,
+  TResolvedSession = TSession,
+> = TAuth extends true
+  ? { session: NonNullable<TResolvedSession> }
+  : { session?: TResolvedSession | undefined };
 
 /**
  * Handler signature used by discovered routes.
@@ -25,9 +28,12 @@ export type HandlerContext<TAuth extends boolean = boolean> = TAuth extends true
  * };
  * ```
  */
-export type RouteHandler<TAuth extends boolean = boolean> = (
+export type RouteHandler<
+  TAuth extends boolean = boolean,
+  TResolvedSession = TSession,
+> = (
   req: BunRequest,
-  ctx: HandlerContext<TAuth>,
+  ctx: HandlerContext<TAuth, TResolvedSession>,
 ) => Response | Promise<Response>;
 
 /**
@@ -41,6 +47,16 @@ export type RouteHandler<TAuth extends boolean = boolean> = (
  * };
  * ```
  */
-export type SessionGetter = (headers: Headers, request: BunRequest) => TSession | Promise<TSession>;
+export type SessionGetter<TResolvedSession = TSession> = (
+  headers: Headers,
+  request: BunRequest,
+) => TResolvedSession | Promise<TResolvedSession>;
+
+export type InferSession<TGetter> = TGetter extends (
+  headers: Headers,
+  request: BunRequest,
+) => unknown
+  ? Awaited<ReturnType<TGetter>>
+  : TSession;
 
 export type { StandardSchemaV1 };

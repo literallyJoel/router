@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { createController } from "../src/controller";
+import { createRouter } from "../src/router";
 import type { StandardSchemaV1 } from "@standard-schema/spec";
 
 function createMockRequest(
@@ -22,6 +22,10 @@ function createGetRequest(url: string) {
     params?: Record<string, string | undefined>;
   };
 }
+
+const { createController } = createRouter({
+  routesDirectory: "./test/fixtures/routes",
+});
 
 function createMockSchema<T>(
   validate: (input: unknown) =>
